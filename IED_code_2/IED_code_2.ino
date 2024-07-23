@@ -41,8 +41,14 @@ const int SpeakerPin = 35; // Updated for Mega
 double Kp = 2, Ki = 5, Kd = 1;
 double SetpointL, InputL, OutputL;
 double SetpointR, InputR, OutputR;
+
+//inputs are ticks recorded
+//output is in ticks per second <--we determine the time
+//setpoint is the total ticks that we want
 PID myPIDLeft(&InputL, &OutputL, &SetpointL, Kp, Ki, Kd, DIRECT);
-PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT);
+PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT); 
+
+
 
 // Encoder variables
 volatile long encoderLCount = 0;
