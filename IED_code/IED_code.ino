@@ -1,20 +1,20 @@
 #include <PID_v1.h>
 
 // Define motor pins
-const int Motor1Pin1 = 1;
-const int Motor1Pin2 = 2;
-const int Motor1SpeedPin = 3;
-const int Motor2Pin1 = 4;
-const int Motor2Pin2 = 5;
-const int Motor2SpeedPin = 6;
+const int MotorLPin1 = 1;
+const int MotorLPin2 = 2;
+const int MotorLSpeedPin = 3;
+const int MotorRPin1 = 4;
+const int MotorRPin2 = 5;
+const int MotorRSpeedPin = 6;
 
 // Define sweeper motor pins
-const int SweeperMotorPin1 = 7;
-const int SweeperMotorPin2 = 8;
+const int SweeperMotorPinL = 7;
+const int SweeperMotorPinR = 8;
 
 // Define encoder pins
-const int Encoder1Pin = 9; // Encoder for Motor 1
-const int Encoder2Pin = 10; // Encoder for Motor 2
+const int EncoderLPin = 9; // Encoder for Motor 1
+const int EncoderRPin = 10; // Encoder for Motor 2
 
 // Define ultrasonic sensor pins
 const int TrigPin1 = 11;
@@ -25,8 +25,8 @@ const int TrigPin3 = 19;
 const int EchoPin3 = 0;
 
 // Define IR sensor pins
-const int IrSensor1Pin = A0;
-const int IrSensor2Pin = A1;
+const int IrSensorLPin = A0;
+const int IrSensorRPin = A1;
 
 // Define stop button pin
 const int StopButtonPin = A2;
@@ -36,14 +36,14 @@ const int SpeakerPin = A3;
 
 // PID parameter
 double Kp = 2, Ki = 5, Kd = 1;
-double SetpointA, InputA, OutputA;
-double SetpointB, InputB, OutputB;
-PID myPID1(&InputA, &OutputA, &SetpointA, Kp, Ki, Kd, DIRECT);
-PID myPID2(&InputB, &OutputB, &SetpointB, Kp, Ki, Kd, DIRECT);
+double SetpointL, InputL, OutputL;
+double SetpointR, InputR, OutputR;
+PID myPIDLeft(&InputL, &OutputL, &SetpointL, Kp, Ki, Kd, DIRECT);
+PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT);
 
 // Encoder variables
-volatile long encoder1Count = 0;
-volatile long encoder2Count = 0;
+volatile long encoderLCount = 0;
+volatile long encoderRCount = 0;
 
 // Other variables
 const int MaxDistance = 200;  // Maximum distance to check for obstacles
@@ -58,11 +58,11 @@ double distanceChangeRate = 0;
 /*INTERRUPT FUNCTIONS BELOW*/
 
 // Interrupt service routines for encoders
-void encoder1cnt() {
+void encoderLcnt() {
   encoder1Count++;
 }
 
-void encoder2cnt() {
+void encoderRcnt() {
   encoder2Count++;
 }
 
@@ -70,17 +70,17 @@ void encoder2cnt() {
 void timerIsr()
 {
   Timer1.detachInterrupt();  //stop the timer
-  int rotation1 = (encoder1Count / 20);  // divide by number of holes in Disc
-  int rotation2 = (encoder2Count / 20);  // divide by number of holes in Disc
-  encoder1Count=0;  //  reset counter to zero
-  encoder2Count=0;  //  reset counter to zero
+  int rotationL = (encoderLCount / 20);  // divide by number of holes in Disc
+  int rotationR = (encoderRCount / 20);  // divide by number of holes in Disc
+  encoderLCount=0;  //  reset counter to zero
+  encoderRCount=0;  //  reset counter to zero
 
   //debug
-  Serial.print("Motor1 Speed: "); 
-  Serial.print(rotation,DEC);  
+  Serial.print("MotorL Speed: "); 
+  Serial.print(rotationL,DEC);  
   Serial.print(" Rotation per seconds "); 
-  Serial.print(" Motor2 Speed: "); 
-  Serial.print(rotation,DEC);  
+  Serial.print(" MotorR Speed: "); 
+  Serial.print(rotationR,DEC);  
   Serial.println(" Rotation per seconds"); 
   Serial.println();
   Timer1.attachInterrupt( timerIsr );  //enable the timer
@@ -88,24 +88,24 @@ void timerIsr()
 
 void setup() {
   // Initialize motor pins
-  pinMode(Motor1Pin1, OUTPUT);
-  pinMode(Motor1Pin2, OUTPUT);
-  pinMode(Motor1SpeedPin, OUTPUT);
-  pinMode(Motor2Pin1, OUTPUT);
-  pinMode(Motor2Pin2, OUTPUT);
-  pinMode(Motor2SpeedPin, OUTPUT);
+  pinMode(MotorLPin1, OUTPUT);
+  pinMode(MotorLPin2, OUTPUT);
+  pinMode(MotorLSpeedPin, OUTPUT);
+  pinMode(MotorRPin1, OUTPUT);
+  pinMode(MotorRPin2, OUTPUT);
+  pinMode(MotorRSpeedPin, OUTPUT);
 
   // Initialize sweeper motor pins
-  pinMode(SweeperMotorPin1, OUTPUT);
-  pinMode(SweeperMotorPin2, OUTPUT);
+  pinMode(SweeperMotorPinL, OUTPUT);
+  pinMode(SweeperMotorPinR, OUTPUT);
   
   // Initialize encoder pins
-  pinMode(Encoder1Pin, INPUT);
-  pinMode(Encoder2Pin, INPUT);
+  pinMode(EncoderLPin, INPUT);
+  pinMode(EncoderRPin, INPUT);
   
   // Attach interrupts for encoders
-  attachInterrupt(digitalPinToInterrupt(Encoder1Pin), encoder1ISR, RISING);
-  attachInterrupt(digitalPinToInterrupt(Encoder2Pin), encoder2ISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(EncoderLPin), encoderLcnt, RISING);
+  attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
   
   // Initialize ultrasonic sensor pins
   pinMode(TrigPin1, OUTPUT);
@@ -116,8 +116,8 @@ void setup() {
   pinMode(EchoPin3, INPUT);
   
   // Initialize IR sensor pins
-  pinMode(IrSensor1Pin, INPUT);
-  pinMode(IrSensor2Pin, INPUT);
+  pinMode(IrSensorLPin, INPUT);
+  pinMode(IrSensorRPin, INPUT);
   
   // Initialize stop button pin
   pinMode(StopButtonPin, INPUT_PULLUP);
@@ -130,11 +130,11 @@ void setup() {
   
   // Initialize PID
   SetpointA = 0;  // Desired angle to maintain
-  myPID1.SetMode(AUTOMATIC);
-  myPID1.SetOutputLimits(-255, 255);
+  myPIDL.SetMode(AUTOMATIC);
+  myPIDL.SetOutputLimits(-255, 255);
   SetpointB = 0;  // Desired angle to maintain
-  myPID2.SetMode(AUTOMATIC);
-  myPID2.SetOutputLimits(-255, 255);
+  myPIDR.SetMode(AUTOMATIC);
+  myPIDR.SetOutputLimits(-255, 255);
 
   /*INTERUPT CODE BELOW*/
 
@@ -143,8 +143,8 @@ void setup() {
   Timer1.attachInterrupt( timerIsr ); // enable the timer
   
   // Attach Encoder Interrupt
-  attachInterrupt(/*change pin*/, encoder1cnt, RISING);  // increase counter when speed sensor pin goes High
-  attachInterrupt(/*change pin*/, encoder2cnt, RISING);  // increase counter when speed sensor pin goes High
+  attachInterrupt(/*change pin*/, encoderLcnt, RISING);  // increase counter when speed sensor pin goes High
+  attachInterrupt(/*change pin*/, encoderRcnt, RISING);  // increase counter when speed sensor pin goes High
   
 }
 
@@ -170,28 +170,28 @@ void loop() {
   InputA = //Current Speed
   InputB = //Current Speed
   // Update PID
-  myPID1.Compute();
-  myPID2.Compute();
+  myPIDL.Compute();
+  myPIDR.Compute();
   
   // Set motor speeds based on PID output
-  int motor1Speed = constrain(255 + OutputA, 0, 255);
-  int motor2Speed = constrain(255 + OutputB, 0, 255);
+  int motorLSpeed = constrain(255 + OutputL, 0, 255);
+  int motorRSpeed = constrain(255 + OutputR, 0, 255);
   
-  setMotorSpeed(motor1Speed, motor2Speed);
+  setMotorSpeed(motorLSpeed, motorRSpeed);
   
   // Debugging information
-  Serial.print("SetpointA: ");
-  Serial.print(SetpointA);
-  Serial.print(" InputA: ");
-  Serial.print(InputA);
-  Serial.print(" OutputA: ");
-  Serial.println(OutputA);
-  Serial.print("SetpointB: ");
-  Serial.print(SetpointB);
-  Serial.print(" InputB: ");
-  Serial.print(InputB);
-  Serial.print(" OutputB: ");
-  Serial.println(OutputB);
+  Serial.print("SetpointL: ");
+  Serial.print(SetpointL);
+  Serial.print(" InputL: ");
+  Serial.print(InputL);
+  Serial.print(" OutputL: ");
+  Serial.println(OutputL);
+  Serial.print("SetpointR: ");
+  Serial.print(SetpointR);
+  Serial.print(" InputR: ");
+  Serial.print(InputR);
+  Serial.print(" OutputR: ");
+  Serial.println(OutputR);
   Serial.println();
   
 }
@@ -267,45 +267,44 @@ void checkUltrasonicSensors() {
 }
 
 bool checkIrSensors() {
-  int irValue1 = analogRead(IrSensor1Pin);
-  int irValue2 = analogRead(IrSensor2Pin);
+  int irValueL = analogRead(IrSensorLPin);
+  int irValueR = analogRead(IrSensorRPin);
   
   Serial.print("Drop_L: ");
-  Serial.print(irValue1);
+  Serial.print(irValueL);
   Serial.print(" Drop_R: ");
-  Serial.println(irValue2);
+  Serial.println(irValueR);
   Serial.println();
 
-  if (irValue1 < IrThreshold || irValue2 < IrThreshold) { // Drop detected
+  if (irValueL < IrThreshold || irValueR < IrThreshold) { // Drop detected
     return true;
   }
   
   return false;
 
-
 }
 
-void setMotorSpeed(int motor1Speed, int motor2Speed) {
-  if (motor1Speed > 0) {
-    digitalWrite(Motor1Pin1, HIGH);
-    digitalWrite(Motor1Pin2, LOW);
+void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
+  if (motorLSpeed > 0) {
+    digitalWrite(MotorLPin1, HIGH);
+    digitalWrite(MotorLPin2, LOW);
   } else {
-    digitalWrite(Motor1Pin1, LOW);
-    digitalWrite(Motor1Pin2, HIGH);
-    motor1Speed = -motor1Speed;
+    digitalWrite(MotorLPin1, LOW);
+    digitalWrite(MotorLPin2, HIGH);
+    motorLSpeed = -motorLSpeed;
   }
   
-  if (motor2Speed > 0) {
-    digitalWrite(Motor2Pin1, HIGH);
-    digitalWrite(Motor2Pin2, LOW);
+  if (motorRSpeed > 0) {
+    digitalWrite(MotorRPin1, HIGH);
+    digitalWrite(MotorRPin2, LOW);
   } else {
-    digitalWrite(Motor2Pin1, LOW);
-    digitalWrite(Motor2Pin2, HIGH);
-    motor2Speed = -motor2Speed;
+    digitalWrite(MotorRPin1, LOW);
+    digitalWrite(MotorRPin2, HIGH);
+    motorRSpeed = -motorRSpeed;
   }
   
-  analogWrite(Motor1SpeedPin, motor1Speed);
-  analogWrite(Motor2SpeedPin, motor2Speed);
+  analogWrite(MotorLSpeedPin, motorRSpeed);
+  analogWrite(MotorRSpeedPin, motorRSpeed);
 }
 
 void reverseAndTurn(bool x) {
@@ -317,10 +316,10 @@ void reverseAndTurn(bool x) {
 
 void setSweeperMotors(bool state) {
   if (state) {
-    digitalWrite(SweeperMotorPin1, HIGH);
-    digitalWrite(SweeperMotorPin2, LOW);
+    digitalWrite(SweeperMotorPinL, HIGH);
+    digitalWrite(SweeperMotorPinR, LOW);
   } else {
-    digitalWrite(SweeperMotorPin1, LOW);
-    digitalWrite(SweeperMotorPin2, LOW);
+    digitalWrite(SweeperMotorPinL, LOW);
+    digitalWrite(SweeperMotorPinR, LOW);
   }
 }
