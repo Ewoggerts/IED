@@ -28,8 +28,8 @@ const int TrigPin3 = 32;
 const int EchoPin3 = 33;
 
 // Define IR sensor pins
-const int IrSensorLPin = A8;
-const int IrSensorRPin = A9;
+const int IrSensorLPin = A6;
+const int IrSensorRPin = A7;
 
 // Stop button pin
 const int StopButtonPin = 34; // Updated for Mega
@@ -58,11 +58,11 @@ bool isStopped = false;
 
 // Interrupt service routines for encoders
 void encoderLcnt() {
-  encoder1Count++;
+  encoderLCount++;
 }
 
 void encoderRcnt() {
-  encoder2Count++;
+  encoderRCount++;
 }
 
 /*modify so it updates input*/
@@ -107,11 +107,11 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
   
   // Initialize ultrasonic sensor pins
-  pinMode(TrigPin1, OUTPUT);
+  pinMode(TrigPin1, OUTPUT); //Left
   pinMode(EchoPin1, INPUT);
-  pinMode(TrigPin2, OUTPUT);
+  pinMode(TrigPin2, OUTPUT); //Middle
   pinMode(EchoPin2, INPUT);
-  pinMode(TrigPin3, OUTPUT);
+  pinMode(TrigPin3, OUTPUT); //Right
   pinMode(EchoPin3, INPUT);
   
   // Initialize IR sensor pins
@@ -128,12 +128,12 @@ void setup() {
   Serial.begin(9600);
   
   // Initialize PID
-  SetpointA = 0;  // Desired angle to maintain
-  myPIDL.SetMode(AUTOMATIC);
-  myPIDL.SetOutputLimits(-255, 255);
-  SetpointB = 0;  // Desired angle to maintain
-  myPIDR.SetMode(AUTOMATIC);
-  myPIDR.SetOutputLimits(-255, 255);
+  SetpointL = 0;  // Desired angle to maintain
+  myPIDLeft.SetMode(AUTOMATIC);
+  myPIDLeft.SetOutputLimits(-255, 255);
+  SetpointR = 0;  // Desired angle to maintain
+  myPIDRight.SetMode(AUTOMATIC);
+  myPIDRight.SetOutputLimits(-255, 255);
 
   /*INTERUPT CODE BELOW*/
 
@@ -142,7 +142,7 @@ void setup() {
   Timer1.attachInterrupt( timerIsr ); // enable the timer
   
   // Attach Encoder Interrupt
-  attachInterrupt(/*change pin*/, encoderLcnt, RISING);  // increase counter when speed sensor pin goes High
-  attachInterrupt(/*change pin*/, encoderRcnt, RISING);  // increase counter when speed sensor pin goes High
+  attachInterrupt(EncoderLPin, encoderLcnt, RISING);  // increase counter when speed sensor pin goes High
+  attachInterrupt(EncoderRPin, encoderRcnt, RISING);  // increase counter when speed sensor pin goes High
   
 }

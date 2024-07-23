@@ -1,5 +1,5 @@
 {
     "board": "arduino:avr:uno",
     "programmer": "avrisp",
-    "sketch": "IED_code.ino"
+    "sketch": "IED_code_2/IED_code_2.ino"
 }
