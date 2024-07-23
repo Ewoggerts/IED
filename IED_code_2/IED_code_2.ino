@@ -43,7 +43,7 @@ double SetpointL, InputL, OutputL;
 double SetpointR, InputR, OutputR;
 
 //inputs are ticks recorded
-//output is in ticks per second <--we determine the time
+//output is in ticks in relations to a proportion (ticks per second);
 //setpoint is the total ticks that we want
 PID myPIDLeft(&InputL, &OutputL, &SetpointL, Kp, Ki, Kd, DIRECT);
 PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT); 
