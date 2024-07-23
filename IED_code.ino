@@ -166,7 +166,6 @@ void loop() {
   checkUltrasonicSensors();
   reverseAndTurn(checkIrSensors());
   
-  /*ALL WRONG BELOW ---------------------------------------------------*/
   // Update PID input with encoder feedback
   InputA = //Current Speed
   InputB = //Current Speed
@@ -194,7 +193,6 @@ void loop() {
   Serial.print(" OutputB: ");
   Serial.println(OutputB);
   Serial.println();
-  /*ALL WRONG ABOVE ----------------------------------------------------*/
   
 }
 
