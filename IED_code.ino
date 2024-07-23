@@ -214,6 +214,10 @@ void checkUltrasonicSensors() {
   long distance2 = readUltrasonic(TrigPin2, EchoPin2); // Middle
   long distance3 = readUltrasonic(TrigPin3, EchoPin3); // Right
 
+  bool left = (distance1 < 30);
+  bool middle = (distance2 < 30);
+  bool right = (distance3 < 30);
+
   Serial.print("Distance_L: ")
   Serial.print(distance1);
   Serial.print(" Distance_M: ")
@@ -225,13 +229,40 @@ void checkUltrasonicSensors() {
   // Beep frequency based on closest distance
   long closestDistance = min(distance1, min(distance2, distance3));
   if (closestDistance < SafeDistance) {
-    tone(SpeakerPin, 1000 - (closestDistance * 10));  // Beep faster as it gets closer
+    tone(SpeakerPin, 1000 - (closestDistance * 15));  // Beep faster as it gets closer
   } else {
     noTone(SpeakerPin);
   }
 
-  /*FIX LOGIC -------------------------------------------------------------------------------*/
-  
+  /*FIX LOGIC --------------------------------------------------------------------------------*/
+  if (left && !middle && !right){
+    SetpointA =
+    SetpointB = 
+  }
+  else if (!left && middle && !right){
+    SetpointA =
+    SetpointB = 
+  }
+  else if (!left && !middle && right){
+    SetpointA =
+    SetpointB = 
+  }
+  else if (left && middle && !right){
+    SetpointA =
+    SetpointB = 
+  }
+  else if (left && !middle && right){
+    SetpointA =
+    SetpointB = 
+  }
+  else if (!left && middle && right){
+    SetpointA =
+    SetpointB = 
+  }
+  else if (left && middle && right){
+    SetpointA =
+    SetpointB = 
+  }
   /*FIX LOGIC --------------------------------------------------------------------------------*/
 }
 
@@ -279,8 +310,8 @@ void setMotorSpeed(int motor1Speed, int motor2Speed) {
 
 void reverseAndTurn(bool x) {
   if (x == true){
-    //reverse a little bit
-    //spin car around
+    SetpointA =
+    SetpointB = 
   }
 }
 
