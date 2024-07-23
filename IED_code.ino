@@ -34,10 +34,12 @@ const int StopButtonPin = A2;
 // Define speaker pin
 const int SpeakerPin = A3;
 
-// PID parameters
-double Setpoint, Input, Output;
+// PID parameter
 double Kp = 2, Ki = 5, Kd = 1;
-PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+double SetpointA, InputA, OutputA;
+double SetpointB, InputB, OutputB;
+PID myPID1(&InputA, &OutputA, &SetpointA, Kp, Ki, Kd, DIRECT);
+PID myPID2(&InputB, &OutputB, &SetpointB, Kp, Ki, Kd, DIRECT);
 
 // Encoder variables
 volatile long encoder1Count = 0;
@@ -53,13 +55,35 @@ bool isStopped = false;
 double previousDistance = MaxDistance;
 double distanceChangeRate = 0;
 
+/*INTERRUPT FUNCTIONS BELOW*/
+
 // Interrupt service routines for encoders
-void encoder1ISR() {
+void encoder1cnt() {
   encoder1Count++;
 }
 
-void encoder2ISR() {
+void encoder2cnt() {
   encoder2Count++;
+}
+
+/*modify so it updates input*/
+void timerIsr()
+{
+  Timer1.detachInterrupt();  //stop the timer
+  int rotation1 = (encoder1Count / 20);  // divide by number of holes in Disc
+  int rotation2 = (encoder2Count / 20);  // divide by number of holes in Disc
+  encoder1Count=0;  //  reset counter to zero
+  encoder2Count=0;  //  reset counter to zero
+
+  //debug
+  Serial.print("Motor1 Speed: "); 
+  Serial.print(rotation,DEC);  
+  Serial.print(" Rotation per seconds "); 
+  Serial.print(" Motor2 Speed: "); 
+  Serial.print(rotation,DEC);  
+  Serial.println(" Rotation per seconds"); 
+  Serial.println();
+  Timer1.attachInterrupt( timerIsr );  //enable the timer
 }
 
 void setup() {
@@ -105,9 +129,23 @@ void setup() {
   Serial.begin(9600);
   
   // Initialize PID
-  Setpoint = 0;  // Desired angle to maintain
-  myPID.SetMode(AUTOMATIC);
-  myPID.SetOutputLimits(-255, 255);
+  SetpointA = 0;  // Desired angle to maintain
+  myPID1.SetMode(AUTOMATIC);
+  myPID1.SetOutputLimits(-255, 255);
+  SetpointB = 0;  // Desired angle to maintain
+  myPID2.SetMode(AUTOMATIC);
+  myPID2.SetOutputLimits(-255, 255);
+
+  /*INTERUPT CODE BELOW*/
+
+  // Initalize Timer and Timer Interupt 
+  Timer1.initialize(1000000); // set timer for 1sec
+  Timer1.attachInterrupt( timerIsr ); // enable the timer
+  
+  // Attach Encoder Interrupt
+  attachInterrupt(/*change pin*/, encoder1cnt, RISING);  // increase counter when speed sensor pin goes High
+  attachInterrupt(/*change pin*/, encoder2cnt, RISING);  // increase counter when speed sensor pin goes High
+  
 }
 
 void loop() {
@@ -126,32 +164,37 @@ void loop() {
   }
   
   checkUltrasonicSensors();
+  reverseAndTurn(checkIrSensors());
   
-  if (checkIrSensors()) {
-    // Reverse and turn if a drop is detected
-    reverseAndTurn();
-    return;
-  }
-  
+  /*ALL WRONG BELOW ---------------------------------------------------*/
   // Update PID input with encoder feedback
-  Input = (encoder1Count - encoder2Count) / 2.0;
-  
+  InputA = //Current Speed
+  InputB = //Current Speed
   // Update PID
-  myPID.Compute();
+  myPID1.Compute();
+  myPID2.Compute();
   
   // Set motor speeds based on PID output
-  int motor1Speed = constrain(255 + Output, 0, 255);
-  int motor2Speed = constrain(255 - Output, 0, 255);
+  int motor1Speed = constrain(255 + OutputA, 0, 255);
+  int motor2Speed = constrain(255 + OutputB, 0, 255);
   
   setMotorSpeed(motor1Speed, motor2Speed);
   
   // Debugging information
-  Serial.print("Setpoint: ");
-  Serial.print(Setpoint);
-  Serial.print(" Input: ");
-  Serial.print(Input);
-  Serial.print(" Output: ");
-  Serial.println(Output);
+  Serial.print("SetpointA: ");
+  Serial.print(SetpointA);
+  Serial.print(" InputA: ");
+  Serial.print(InputA);
+  Serial.print(" OutputA: ");
+  Serial.println(OutputA);
+  Serial.print("SetpointB: ");
+  Serial.print(SetpointB);
+  Serial.print(" InputB: ");
+  Serial.print(InputB);
+  Serial.print(" OutputB: ");
+  Serial.println(OutputB);
+  Serial.println();
+  /*ALL WRONG ABOVE ----------------------------------------------------*/
   
 }
 
@@ -172,6 +215,14 @@ void checkUltrasonicSensors() {
   long distance1 = readUltrasonic(TrigPin1, EchoPin1); // Left
   long distance2 = readUltrasonic(TrigPin2, EchoPin2); // Middle
   long distance3 = readUltrasonic(TrigPin3, EchoPin3); // Right
+
+  Serial.print("Distance_L: ")
+  Serial.print(distance1);
+  Serial.print(" Distance_M: ")
+  Serial.print(distance2);
+  Serial.print(" Distance_R: ")
+  Serial.println(distance3);
+  Serial.println();
   
   // Beep frequency based on closest distance
   long closestDistance = min(distance1, min(distance2, distance3));
@@ -181,40 +232,28 @@ void checkUltrasonicSensors() {
     noTone(SpeakerPin);
   }
 
-  if (closestDistance < SafeDistance) {
-    // Calculate rate of distance change
-    distanceChangeRate = previousDistance - closestDistance;
-    previousDistance = closestDistance;
-
-    // Adjust setpoint for PID based on obstacle position, distance, and rate of change
-    if (distance2 < SafeDistance) {
-      // If the middle sensor detects an obstacle, move left
-      Setpoint = map(closestDistance, 0, SafeDistance, -90, -30) - distanceChangeRate * 2;
-    } else if (distance1 < SafeDistance) {
-      // If the left sensor detects an obstacle, move right
-      Setpoint = map(closestDistance, 0, SafeDistance, 90, 30) + distanceChangeRate * 2;
-    } else if (distance3 < SafeDistance) {
-      // If the right sensor detects an obstacle, move left
-      Setpoint = map(closestDistance, 0, SafeDistance, -90, -30) - distanceChangeRate * 2;
-    } else {
-      Setpoint = 0;
-    }
-  } else {
-    // No obstacles detected within SafeDistance, maintain course
-    Setpoint = 0;
-  }
+  /*FIX LOGIC -------------------------------------------------------------------------------*/
+  
+  /*FIX LOGIC --------------------------------------------------------------------------------*/
 }
 
 bool checkIrSensors() {
   int irValue1 = analogRead(IrSensor1Pin);
   int irValue2 = analogRead(IrSensor2Pin);
   
-  if (irValue1 < IrThreshold || irValue2 < IrThreshold) {
-    // Drop detected
+  Serial.print("Drop_L: ");
+  Serial.print(irValue1);
+  Serial.print(" Drop_R: ");
+  Serial.println(irValue2);
+  Serial.println();
+
+  if (irValue1 < IrThreshold || irValue2 < IrThreshold) { // Drop detected
     return true;
   }
   
   return false;
+
+
 }
 
 void setMotorSpeed(int motor1Speed, int motor2Speed) {
@@ -240,14 +279,11 @@ void setMotorSpeed(int motor1Speed, int motor2Speed) {
   analogWrite(Motor2SpeedPin, motor2Speed);
 }
 
-void reverseAndTurn() {
-  // Reverse the motors for a short time
-  setMotorSpeed(-255, -255);
-  delay(1000);
-  
-  // Turn the robot
-  setMotorSpeed(-255, 255);
-  delay(1000);
+void reverseAndTurn(bool x) {
+  if (x == true){
+    //reverse a little bit
+    //spin car around
+  }
 }
 
 void setSweeperMotors(bool state) {
