@@ -31,6 +31,11 @@ const int EchoPin3 = 33;
 const int IrSensorLPin = A8;
 const int IrSensorRPin = A9;
 
+// Stop button pin
+const int StopButtonPin = 34; // Updated for Mega
+
+// Speaker pin
+const int SpeakerPin = 35; // Updated for Mega
 
 // PID parameter
 double Kp = 2, Ki = 5, Kd = 1;
