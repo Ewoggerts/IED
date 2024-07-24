@@ -3,6 +3,7 @@
 #include <L298N.h>
 #include <HCSR04.h>
 
+
 // Define motor pins
 const int MotorLPin1 = 22;
 const int MotorLPin2 = 23;
@@ -46,10 +47,16 @@ double SetpointR, InputR, OutputR;
 //output is in ticks in relations to a proportion (ticks per second);
 //setpoint is the total ticks that we want
 PID myPIDLeft(&InputL, &OutputL, &SetpointL, Kp, Ki, Kd, DIRECT);
+<<<<<<< Updated upstream
 PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT); 
 
 
 
+=======
+PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT);
+double maxMotorSpeed = 40; //Max speed of motor in Ticks per Second
+MathFunctions 
+>>>>>>> Stashed changes
 // Encoder variables
 volatile long encoderLCount = 0;
 volatile long encoderRCount = 0;
@@ -136,7 +143,7 @@ void setup() {
   // Initialize PID
   SetpointL = 0;  // Desired angle to maintain
   myPIDLeft.SetMode(AUTOMATIC);
-  myPIDLeft.SetOutputLimits(-255, 255);
+  myPIDLeft.SetOutputLimits(-255, 255); //Set output speed limits (in ticks per second)
   SetpointR = 0;  // Desired angle to maintain
   myPIDRight.SetMode(AUTOMATIC);
   myPIDRight.SetOutputLimits(-255, 255);
@@ -150,5 +157,9 @@ void setup() {
   // Attach Encoder Interrupt
   attachInterrupt(EncoderLPin, encoderLcnt, RISING);  // increase counter when speed sensor pin goes High
   attachInterrupt(EncoderRPin, encoderRcnt, RISING);  // increase counter when speed sensor pin goes High
+  
+}
+
+void loop() {
   
 }
