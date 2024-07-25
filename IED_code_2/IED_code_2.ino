@@ -2,7 +2,7 @@
 #include <TimerOne.h>
 #include <L298N.h>
 #include <HCSR04.h>
-
+#include <Functions.ino>
 
 // Define motor pins
 const int MotorLPin1 = 22;
@@ -21,16 +21,13 @@ const int EncoderLPin = 18;
 const int EncoderRPin = 19; 
 
 // Define ultrasonic sensor pins
-const int TrigPin1 = 28;
-const int EchoPin1 = 29;
-const int TrigPin2 = 30;
-const int EchoPin2 = 31;
-const int TrigPin3 = 32;
-const int EchoPin3 = 33;
+byte triggerPin = 28;
+byte echoCount = 3;
+byte* echoPins = new byte[3] { 29, 30, 31 };
 
 // Define IR sensor pins
-const int IrSensorLPin = A6;
-const int IrSensorRPin = A7;
+const int IrSensorLPin = 32;
+const int IrSensorRPin = 33;
 
 // Stop button pin
 const int StopButtonPin = 34; // Updated for Mega
@@ -47,16 +44,9 @@ double SetpointR, InputR, OutputR;
 //output is in ticks in relations to a proportion (ticks per second);
 //setpoint is the total ticks that we want
 PID myPIDLeft(&InputL, &OutputL, &SetpointL, Kp, Ki, Kd, DIRECT);
-<<<<<<< Updated upstream
-PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT); 
-
-
-
-=======
 PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT);
 double maxMotorSpeed = 40; //Max speed of motor in Ticks per Second
-MathFunctions 
->>>>>>> Stashed changes
+ 
 // Encoder variables
 volatile long encoderLCount = 0;
 volatile long encoderRCount = 0;
@@ -66,6 +56,9 @@ const int MaxDistance = 200;  // Maximum distance to check for obstacles
 const int SafeDistance = 30;  // Safe distance from obstacles
 const int IrThreshold = 500;  // Threshold for IR sensors to detect drop
 bool isStopped = false;
+
+int wheelDiameter = 6; //cm
+int ticksPerRev = 20;
 
 /*INTERRUPT FUNCTIONS BELOW*/
 
@@ -120,12 +113,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
   
   // Initialize ultrasonic sensor pins
-  pinMode(TrigPin1, OUTPUT); //Left
-  pinMode(EchoPin1, INPUT);
-  pinMode(TrigPin2, OUTPUT); //Middle
-  pinMode(EchoPin2, INPUT);
-  pinMode(TrigPin3, OUTPUT); //Right
-  pinMode(EchoPin3, INPUT);
+  HCSR04.begin(triggerPin, echoPins, echoCount);
   
   // Initialize IR sensor pins
   pinMode(IrSensorLPin, INPUT);
@@ -161,5 +149,89 @@ void setup() {
 }
 
 void loop() {
+  /*Read Sensors*/
+  //[0] => left [1] => middle [2] => right
+  double* distances = HCSR04.measureDistanceCm(); 
   
+  dropAvoidance(detectDrop(IrSensorLPin, IrSensorRPin));
+
+}
+
+
+
+void obstacleAvoidance( double* distances){
+  if (left && !middle && !right){
+    //slow
+    //rotate slight right (2 degrees at a time)
+  }
+  else if (!left && middle && !right){ //works withing 200 cm to 20 cm
+    //slow
+    if (left_val > right_val){
+      //rotate left
+    }
+    else if (left_val <= right_val) {
+      //rotate right
+    }
+    
+  }
+  else if (!left && !middle && right){
+    //slow
+    //rotate slight left (2 degrees at a time)
+  }
+  else if (left && middle && !right){
+    //slow 
+    //rotate right
+  }
+  else if (left && !middle && right){
+    //slow
+    //rotate 360
+  }
+  else if (!left && middle && right){
+    //slow 
+    //rotate left
+  }
+  else if (left && middle && right){
+    //slow
+    //rotate 360
+  }
+  else{
+    SetpointL, SetpointR = distanceToWheelRev(200, wheelDiameter, ticksPerRev);
+  }
+  myPIDLeft.Compute();
+  myPIDRight.Compute();
+}
+
+
+int detectDrop(int leftPin, int rightPin) {
+  int leftSensorValue = digitalRead(leftPin);
+  int rightSensorValue = digitalRead(rightPin);
+  
+  if (leftSensorValue == LOW && rightSensorValue == LOW) {
+    return 2; // Drop detected on both sides
+  } else if (leftSensorValue == LOW) {
+    return 0; // Drop detected on the left side
+  } else if (rightSensorValue == LOW) {
+    return 1; // Drop detected on the right side
+  } else {
+    return -1; // No drop detected
+  }
+}
+
+void dropAvoidance(int drop){
+  if (drop == 2){
+    //reverse 10 cm
+    //rotate 180 degrees
+  }
+  else if (drop == 0){ //left side
+    //reverse 10 cm
+    //rotate 90 degrees clockwise
+  }
+  else if (drop == 1){ //right side
+    //reveres 10cm
+    //rotate 90 degreese anti-clockwise
+  }
+}
+
+int generateRandomValue(int minVal, int maxVal) {
+  return random(minVal, maxVal + 1); // +1 to include maxVal
 }
