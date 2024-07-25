@@ -149,20 +149,19 @@ void setup() {
 }
 
 void loop() {
-  /*Read Sensors*/
-  //[0] => left [1] => middle [2] => right
-  double* distances = HCSR04.measureDistanceCm(); 
-  
   dropAvoidance(detectDrop(IrSensorLPin, IrSensorRPin));
-
+  obstacleAvoidance(HCSR04.measureDistanceCm());
 }
 
-
-
 void obstacleAvoidance( double* distances){
+  //count ticks to see if value has been met. Aka command was successful.
   if (left && !middle && !right){
     //slow
     //rotate slight right (2 degrees at a time)
+    encoderLCount = 0;  //  reset counter to zero
+    encoderRCount = 0;  //  reset counter to zero
+    SetpointL = 
+    SetpointR = 
   }
   else if (!left && middle && !right){ //works withing 200 cm to 20 cm
     //slow
@@ -197,8 +196,10 @@ void obstacleAvoidance( double* distances){
   else{
     SetpointL, SetpointR = distanceToWheelRev(200, wheelDiameter, ticksPerRev);
   }
-  myPIDLeft.Compute();
-  myPIDRight.Compute();
+  while(encoderLCount != encoderRCount != ){
+      myPIDLeft.Compute();
+      myPIDRight.Compute();
+  }
 }
 
 
