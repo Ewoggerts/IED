@@ -17,8 +17,8 @@ const int SweeperMotorPinL = 26;
 const int SweeperMotorPinR = 27;
 
 // Define encoder pins
-const int EncoderLPin = 18; 
-const int EncoderRPin = 19; 
+const int EncoderLPin = 20; 
+const int EncoderRPin = 21; 
 
 // Define ultrasonic sensor pins
 byte triggerPin = 28;
@@ -26,8 +26,8 @@ byte echoCount = 3;
 byte* echoPins = new byte[3] { 29, 30, 31 };
 
 // Define IR sensor pins
-const int IrSensorLPin = 32;
-const int IrSensorRPin = 33;
+const int IrSensorLPin = 2;
+const int IrSensorRPin = 3;
 
 // Stop button pin
 const int StopButtonPin = 34; // Updated for Mega
@@ -52,43 +52,27 @@ volatile long encoderLCount = 0;
 volatile long encoderRCount = 0;
 
 // Other variables
-const int MaxDistance = 200;  // Maximum distance to check for obstacles
 const int SafeDistance = 30;  // Safe distance from obstacles
-const int IrThreshold = 500;  // Threshold for IR sensors to detect drop
 bool isStopped = false;
-
 int wheelDiameter = 6; //cm
 int ticksPerRev = 20;
+int maxTicksPerSec = 7;
 
 /*INTERRUPT FUNCTIONS BELOW*/
 
 // Interrupt service routines for encoders
 void encoderLcnt() {
   encoderLCount++;
+  //debug
+  Serial.print("encoderLCount: ");
+  Serial.println(encoderLcnt);
 }
 
 void encoderRcnt() {
   encoderRCount++;
-}
-
-/*modify so it updates input*/
-void timerIsr()
-{
-  Timer1.detachInterrupt();  //stop the timer
-  int rotationL = (encoderLCount / 20);  // divide by number of holes in Disc
-  int rotationR = (encoderRCount / 20);  // divide by number of holes in Disc
-  encoderLCount = 0;  //  reset counter to zero
-  encoderRCount = 0;  //  reset counter to zero
-
   //debug
-  Serial.print("MotorL Speed: "); 
-  Serial.print(rotationL,DEC);  
-  Serial.print(" Rotation per seconds "); 
-  Serial.print(" MotorR Speed: "); 
-  Serial.print(rotationR,DEC);  
-  Serial.println(" Rotation per seconds"); 
-  Serial.println();
-  Timer1.attachInterrupt( timerIsr );  //enable the timer
+  Serial.print("encoderRCount: ");
+  Serial.println(encoderRcnt);
 }
 
 void setup() {
@@ -107,10 +91,6 @@ void setup() {
   // Initialize encoder pins
   pinMode(EncoderLPin, INPUT);
   pinMode(EncoderRPin, INPUT);
-  
-  // Attach interrupts for encoders
-  attachInterrupt(digitalPinToInterrupt(EncoderLPin), encoderLcnt, RISING);
-  attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
   
   // Initialize ultrasonic sensor pins
   HCSR04.begin(triggerPin, echoPins, echoCount);
@@ -131,108 +111,85 @@ void setup() {
   // Initialize PID
   SetpointL = 0;  // Desired angle to maintain
   myPIDLeft.SetMode(AUTOMATIC);
-  myPIDLeft.SetOutputLimits(-255, 255); //Set output speed limits (in ticks per second)
+  myPIDLeft.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); //Set output speed limits (in ticks per second)
   SetpointR = 0;  // Desired angle to maintain
   myPIDRight.SetMode(AUTOMATIC);
-  myPIDRight.SetOutputLimits(-255, 255);
+  myPIDRight.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); //Set output speed limits (in ticks per second)
 
-  /*INTERUPT CODE BELOW*/
-
-  // Initalize Timer and Timer Interupt 
-  Timer1.initialize(1000000); // set timer for 1sec
-  Timer1.attachInterrupt( timerIsr ); // enable the timer
-  
-  // Attach Encoder Interrupt
-  attachInterrupt(EncoderLPin, encoderLcnt, RISING);  // increase counter when speed sensor pin goes High
-  attachInterrupt(EncoderRPin, encoderRcnt, RISING);  // increase counter when speed sensor pin goes High
-  
+  /*ATTACH INTERUPT BELOW*/
+  attachInterrupt(digitalPinToInterrupt(EncoderLPin), encoderLcnt, RISING);
+  attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
+  attachInterrupt(digitalPinToInterrupt(IrSensorLPin), dropAvoidance, FALLING);
+  attachInterrupt(digitalPinToInterrupt(IrSensorRPin), dropAvoidance, FALLING);  
 }
 
 void loop() {
-  dropAvoidance(detectDrop(IrSensorLPin, IrSensorRPin));
-  obstacleAvoidance(HCSR04.measureDistanceCm());
+  obstacleAvoidance(HCSR04.measureDistanceCm()); //Constantly checks for need direction change
 }
 
 void obstacleAvoidance( double* distances){
-  //count ticks to see if value has been met. Aka command was successful.
-  if (left && !middle && !right){
-    //slow
-    //rotate slight right (2 degrees at a time)
-    encoderLCount = 0;  //  reset counter to zero
-    encoderRCount = 0;  //  reset counter to zero
-    SetpointL = 
-    SetpointR = 
+  //Returns a boolean that determines if safeDistance has been breached
+  if (checkDist(distances, SafeDistance)){
+    changeDirection(false); //Random direction change without a drop
   }
-  else if (!left && middle && !right){ //works withing 200 cm to 20 cm
-    //slow
-    if (left_val > right_val){
-      //rotate left
-    }
-    else if (left_val <= right_val) {
-      //rotate right
-    }
-    
+}
+
+void dropAvoidance() {
+  shortReverse(); //10 cm reverse
+  changeDirection(true); //180 direction change if there is a drop
+}
+
+void changeDirection(bool forced){
+  //Forced 180 direction change (in cases where there is a drop)
+  int deg = 180;
+  int ticks = turnAngleToWheelRev(deg, driveBase, wheelDiameter, ticksPerRev);
+
+  //Otherwise random direction change
+  if (!forced){
+    deg = generateRandomValue(-180, 180);
+    ticks = turnAngleToWheelRev(deg, driveBase, wheelDiameter, ticksPerRev);
   }
-  else if (!left && !middle && right){
-    //slow
-    //rotate slight left (2 degrees at a time)
-  }
-  else if (left && middle && !right){
-    //slow 
-    //rotate right
-  }
-  else if (left && !middle && right){
-    //slow
-    //rotate 360
-  }
-  else if (!left && middle && right){
-    //slow 
-    //rotate left
-  }
-  else if (left && middle && right){
-    //slow
-    //rotate 360
+
+  //set encoders back to 0 for pid 
+  encoderLcnt = 0;
+  encoderRcnt = 0;
+
+  //Determine which wheel goes back or forward
+  if (deg < 0){
+    SetpointL = -ticks;
+    SetpointR = ticks;
   }
   else{
-    SetpointL, SetpointR = distanceToWheelRev(200, wheelDiameter, ticksPerRev);
-  }
-  while(encoderLCount != encoderRCount != ){
-      myPIDLeft.Compute();
-      myPIDRight.Compute();
+    SetpointL = ticks;
+    SetpointR = -ticks;
   }
 }
 
+void shortReverse(){
+  //set encoders back to 0 for pid 
+  encoderLcnt = 0;
+  encoderRcnt = 0;
 
-int detectDrop(int leftPin, int rightPin) {
-  int leftSensorValue = digitalRead(leftPin);
-  int rightSensorValue = digitalRead(rightPin);
+  //10cm reverse 
+  int shortReverse = distanceToWheelRev(10 /*cm*/, wheelDiameter, ticksPerRev);
+
+  //Set for reversal
+  SetpointL = -shortReverse;
+  SetpointR = -shortReverse;
   
-  if (leftSensorValue == LOW && rightSensorValue == LOW) {
-    return 2; // Drop detected on both sides
-  } else if (leftSensorValue == LOW) {
-    return 0; // Drop detected on the left side
-  } else if (rightSensorValue == LOW) {
-    return 1; // Drop detected on the right side
-  } else {
-    return -1; // No drop detected
+  //Normalize pid output to pwm signal
+  int revLeft = normalizeToPWM(OutputL);
+  int revRight = normalizeToPWM(OutputR);
+
+  //Force wait till reverse is complete
+  while (encoderLcnt != SetpointL ||  encoderRcnt != SetpointR){
+    inputL = encoderLcnt;
+    inputR = encoderRcnt;
+    myPIDLeft.Compute();
+    myPIDRight.compute();
   }
 }
 
-void dropAvoidance(int drop){
-  if (drop == 2){
-    //reverse 10 cm
-    //rotate 180 degrees
-  }
-  else if (drop == 0){ //left side
-    //reverse 10 cm
-    //rotate 90 degrees clockwise
-  }
-  else if (drop == 1){ //right side
-    //reveres 10cm
-    //rotate 90 degreese anti-clockwise
-  }
-}
+void driveForward(int desiredDist){
 
-int generateRandomValue(int minVal, int maxVal) {
-  return random(minVal, maxVal + 1); // +1 to include maxVal
 }

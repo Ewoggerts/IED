@@ -24,3 +24,16 @@ float normalizeToPWM(float maxTicksPerSec, float inputTicksPerSec) {
   float normalizedPWMVal = map(inputTicksPerSec, -maxTicksPerSec, maxTicksPerSec, -255, 255);
   return normalizedPWMVal;
 }
+
+int generateRandomValue(int minVal, int maxVal) {
+  return random(minVal, maxVal + 1); // +1 to include maxVal
+}
+
+boolean checkDist(double* distances, int SafeDistance){
+  //check if direction change is required
+  for(unsigned int i = 0; i < 3; i++){
+    if (distances[i] < SafeDistance){
+      return true;
+    }
+  }
+}
