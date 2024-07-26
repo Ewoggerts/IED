@@ -57,7 +57,7 @@ bool isStopped = false;
 int wheelDiameter = 6; //cm
 int ticksPerRev = 20;
 int maxTicksPerSec = 7;
-
+int stopMargin = 3;
 /*INTERRUPT FUNCTIONS BELOW*/
 
 // Interrupt service routines for encoders
@@ -98,33 +98,52 @@ void setup() {
   // Initialize IR sensor pins
   pinMode(IrSensorLPin, INPUT);
   pinMode(IrSensorRPin, INPUT);
-  
-  // Initialize stop button pin
-  pinMode(StopButtonPin, INPUT_PULLUP);
 
   // Initialize speaker pin
   pinMode(SpeakerPin, OUTPUT);
   
   // Initialize serial communication for debugging
   Serial.begin(9600);
-  
-  // Initialize PID
-  SetpointL = 0;  // Desired angle to maintain
-  myPIDLeft.SetMode(AUTOMATIC);
-  myPIDLeft.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); //Set output speed limits (in ticks per second)
-  SetpointR = 0;  // Desired angle to maintain
-  myPIDRight.SetMode(AUTOMATIC);
-  myPIDRight.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); //Set output speed limits (in ticks per second)
 
-  /*ATTACH INTERUPT BELOW*/
+  // Attach interrupts
   attachInterrupt(digitalPinToInterrupt(EncoderLPin), encoderLcnt, RISING);
   attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
   attachInterrupt(digitalPinToInterrupt(IrSensorLPin), dropAvoidance, FALLING);
   attachInterrupt(digitalPinToInterrupt(IrSensorRPin), dropAvoidance, FALLING);  
+  
+  //Give some time to set the car down
+  delay(1000);
+
+  // Initialize PID to starting moving the car forward
+  SetpointL = distanceToWheelRev( 40, wheelDiameter, ticksPerRev);  // Intialized Desired distance to reach
+  myPIDLeft.SetMode(AUTOMATIC);
+  myPIDLeft.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); //Set output speed limits (in ticks per second)
+  SetpointR = distanceToWheelRev( 40, wheelDiameter, ticksPerRev);  // Intialized Desired distance to reach
+  myPIDRight.SetMode(AUTOMATIC);
+  myPIDRight.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); //Set output speed limits (in ticks per second)
+
+  // Start the sweeper motors
+  digitalWrite(SweeperMotorPinL, HIGH);
+  digitalWrite(SweeperMotorPinR, HIGH);
 }
 
 void loop() {
   obstacleAvoidance(HCSR04.measureDistanceCm()); //Constantly checks for need direction change
+  /*PID ------------------------------------------------------------------*/
+  inputL = encoderLcnt;
+  inputR = encoderRcnt;
+  myPIDLeft.Compute();
+  myPIDRight.compute();
+  int leftPWM = normalizeToPWM(OutputL);
+  int rightPWM = normalizeToPWM(OutputR);
+  setMotorSpeed = (leftPWM, rightPWM);
+  /*PID ------------------------------------------------------------------*/
+  //Determines if the car has stopped and reach it desired distance
+  if (output <= 3){
+    changeDirection(false);
+    drive(45); //sets the car to keep driving forward 45cm until another interrupt or distance reached
+  }
+
 }
 
 void obstacleAvoidance( double* distances){
@@ -132,56 +151,50 @@ void obstacleAvoidance( double* distances){
   if (checkDist(distances, SafeDistance)){
     changeDirection(false); //Random direction change without a drop
   }
+  drive(45);
 }
 
 void dropAvoidance() {
-  driveReverse(); //10 cm reverse
+  drive(-10); //10 cm reverse
   changeDirection(true); //180 direction change if there is a drop
 }
 
-void forceWait(){
-  //Force wait till reverse is complete
-  while (encoderLcnt != SetpointL || encoderRcnt != SetpointR ){
+void forceWait(int margin){
+  //Force wait till adjustment outputs are really small
+  while (output > margin){
+    /*PID ------------------------------------------------------------------*/
     inputL = encoderLcnt;
     inputR = encoderRcnt;
     myPIDLeft.Compute();
     myPIDRight.compute();
+    int leftPWM = normalizeToPWM(OutputL);
+    int rightPWM = normalizeToPWM(OutputR);
+    setMotorSpeed = (leftPWM, rightPWM);
+    /*PID ------------------------------------------------------------------*/
   }
 }
 
-void driveForward(int desiredDist){
+void drive(int desiredDist){
   //set encoders back to 0 for pid 
   encoderLcnt = 0;
   encoderRcnt = 0;
 
   //forward set dist 
-  int forward = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
+  int driveDist = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
 
-  //Set for reversal
-  SetpointL = forward;
-  SetpointR = forward;
+  //Set for driving forward
+  if (desiredDist > 0){
+    SetpointL = driveDist;
+    SetpointR = driveDist;
+  }
+  else{ //Set for driving reverse
+    SetpointL = -driveDist;
+    SetpointR = -driveDist;
+  }
   
   //Normalize pid output to pwm signal
   int revLeft = normalizeToPWM(OutputL);
   int revRight = normalizeToPWM(OutputR);
-}
-
-void driveReverse(int desiredDist){
-  //set encoders back to 0 for pid 
-  encoderLcnt = 0;
-  encoderRcnt = 0;
-
-  //reverse set dist
-  int reverse = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
-
-  //Set for reversal
-  SetpointL = -reverse;
-  SetpointR = -reverse;
-  
-  //Normalize pid output to pwm signal
-  int revLeft = normalizeToPWM(OutputL);
-  int revRight = normalizeToPWM(OutputR);
-  
 }
 
 void changeDirection(bool forced){
@@ -195,7 +208,10 @@ void changeDirection(bool forced){
     ticks = turnAngleToWheelRev(deg, driveBase, wheelDiameter, ticksPerRev);
   }
 
-  //set encoders back to 0 for pid 
+  //Beep to alert close to an object 
+  tone(SpeakerPin, 200);
+
+  //Set encoders back to 0 for pid 
   encoderLcnt = 0;
   encoderRcnt = 0;
 
@@ -208,4 +224,33 @@ void changeDirection(bool forced){
     SetpointL = ticks;
     SetpointR = -ticks;
   }
+
+  forceWait(stopMargin);
+
+  //End alert sound after direction change finished
+  noTone(SpeakerPin);
 }
+
+void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
+  if (motorLSpeed > 0) {
+    digitalWrite(MotorLPin1, HIGH);
+    digitalWrite(MotorLPin2, LOW);
+  } else {
+    digitalWrite(MotorLPin1, LOW);
+    digitalWrite(MotorLPin2, HIGH);
+    motorLSpeed = -motorLSpeed;
+  }
+  
+  if (motorRSpeed > 0) {
+    digitalWrite(MotorRPin1, HIGH);
+    digitalWrite(MotorRPin2, LOW);
+  } else {
+    digitalWrite(MotorRPin1, LOW);
+    digitalWrite(MotorRPin2, HIGH);
+    motorRSpeed = -motorRSpeed;
+  }
+  
+  analogWrite(MotorLSpeedPin, motorRSpeed);
+  analogWrite(MotorRSpeedPin, motorRSpeed);
+}
+
