@@ -135,8 +135,53 @@ void obstacleAvoidance( double* distances){
 }
 
 void dropAvoidance() {
-  shortReverse(); //10 cm reverse
+  driveReverse(); //10 cm reverse
   changeDirection(true); //180 direction change if there is a drop
+}
+
+void forceWait(){
+  //Force wait till reverse is complete
+  while (encoderLcnt != SetpointL || encoderRcnt != SetpointR ){
+    inputL = encoderLcnt;
+    inputR = encoderRcnt;
+    myPIDLeft.Compute();
+    myPIDRight.compute();
+  }
+}
+
+void driveForward(int desiredDist){
+  //set encoders back to 0 for pid 
+  encoderLcnt = 0;
+  encoderRcnt = 0;
+
+  //forward set dist 
+  int forward = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
+
+  //Set for reversal
+  SetpointL = forward;
+  SetpointR = forward;
+  
+  //Normalize pid output to pwm signal
+  int revLeft = normalizeToPWM(OutputL);
+  int revRight = normalizeToPWM(OutputR);
+}
+
+void driveReverse(int desiredDist){
+  //set encoders back to 0 for pid 
+  encoderLcnt = 0;
+  encoderRcnt = 0;
+
+  //reverse set dist
+  int reverse = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
+
+  //Set for reversal
+  SetpointL = -reverse;
+  SetpointR = -reverse;
+  
+  //Normalize pid output to pwm signal
+  int revLeft = normalizeToPWM(OutputL);
+  int revRight = normalizeToPWM(OutputR);
+  
 }
 
 void changeDirection(bool forced){
@@ -163,38 +208,4 @@ void changeDirection(bool forced){
     SetpointL = ticks;
     SetpointR = -ticks;
   }
-}
-
-void shortReverse(){
-  //set encoders back to 0 for pid 
-  encoderLcnt = 0;
-  encoderRcnt = 0;
-
-  //10cm reverse 
-  int shortReverse = distanceToWheelRev(10 /*cm*/, wheelDiameter, ticksPerRev);
-
-  //Set for reversal
-  SetpointL = -shortReverse;
-  SetpointR = -shortReverse;
-  
-  //Normalize pid output to pwm signal
-  int revLeft = normalizeToPWM(OutputL);
-  int revRight = normalizeToPWM(OutputR);
-
-  forceWait();
-  
-}
-
-void forceWait(){
-  //Force wait till reverse is complete
-  while (encoderLcnt != SetpointL ||  encoderRcnt != SetpointR){
-    inputL = encoderLcnt;
-    inputR = encoderRcnt;
-    myPIDLeft.Compute();
-    myPIDRight.compute();
-  }
-}
-
-void driveForward(int desiredDist){
-
 }
