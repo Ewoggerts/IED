@@ -181,6 +181,11 @@ void shortReverse(){
   int revLeft = normalizeToPWM(OutputL);
   int revRight = normalizeToPWM(OutputR);
 
+  forceWait();
+  
+}
+
+void forceWait(){
   //Force wait till reverse is complete
   while (encoderLcnt != SetpointL ||  encoderRcnt != SetpointR){
     inputL = encoderLcnt;
