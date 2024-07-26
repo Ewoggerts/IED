@@ -58,6 +58,7 @@ int wheelDiameter = 6; //cm
 int ticksPerRev = 20;
 int maxTicksPerSec = 7;
 int stopMargin = 3;
+float driveBase = 5.5;
 /*INTERRUPT FUNCTIONS BELOW*/
 
 // Interrupt service routines for encoders
@@ -65,14 +66,14 @@ void encoderLcnt() {
   encoderLCount++;
   //debug
   Serial.print("encoderLCount: ");
-  Serial.println(encoderLcnt);
+  Serial.println(encoderLCount);
 }
 
 void encoderRcnt() {
   encoderRCount++;
   //debug
   Serial.print("encoderRCount: ");
-  Serial.println(encoderRcnt);
+  Serial.println(encoderRCount);
 }
 
 void setup() {
@@ -130,16 +131,16 @@ void setup() {
 void loop() {
   obstacleAvoidance(HCSR04.measureDistanceCm()); //Constantly checks for need direction change
   /*PID ------------------------------------------------------------------*/
-  inputL = encoderLcnt;
-  inputR = encoderRcnt;
+  InputL = encoderLCount;
+  InputR = encoderRCount;
   myPIDLeft.Compute();
-  myPIDRight.compute();
-  int leftPWM = normalizeToPWM(OutputL);
-  int rightPWM = normalizeToPWM(OutputR);
-  setMotorSpeed = (leftPWM, rightPWM);
+  myPIDRight.Compute();
+  int leftPWM = normalizeToPWM(maxTicksPerSec, maxTicksPerSec);
+  int rightPWM = normalizeToPWM(maxTicksPerSec, maxTicksPerSec);
+  setMotorSpeed(leftPWM, rightPWM);
   /*PID ------------------------------------------------------------------*/
   //Determines if the car has stopped and reach it desired distance
-  if (output <= 3){
+  if (OutputL <= 3 && OutputR <= 3){
     changeDirection(false);
     drive(45); //sets the car to keep driving forward 45cm until another interrupt or distance reached
   }
@@ -161,23 +162,23 @@ void dropAvoidance() {
 
 void forceWait(int margin){
   //Force wait till adjustment outputs are really small
-  while (output > margin){
+  while (OutputL <= margin && OutputR <= margin){
     /*PID ------------------------------------------------------------------*/
-    inputL = encoderLcnt;
-    inputR = encoderRcnt;
+    InputL = encoderLCount;
+    InputR = encoderRCount;
     myPIDLeft.Compute();
-    myPIDRight.compute();
-    int leftPWM = normalizeToPWM(OutputL);
-    int rightPWM = normalizeToPWM(OutputR);
-    setMotorSpeed = (leftPWM, rightPWM);
+    myPIDRight.Compute();
+    int leftPWM = normalizeToPWM(maxTicksPerSec, maxTicksPerSec);
+    int rightPWM = normalizeToPWM(maxTicksPerSec, maxTicksPerSec);
+    setMotorSpeed(leftPWM, rightPWM);
     /*PID ------------------------------------------------------------------*/
   }
 }
 
 void drive(int desiredDist){
   //set encoders back to 0 for pid 
-  encoderLcnt = 0;
-  encoderRcnt = 0;
+  encoderLCount = 0;
+  encoderRCount = 0;
 
   //forward set dist 
   int driveDist = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
@@ -191,10 +192,6 @@ void drive(int desiredDist){
     SetpointL = -driveDist;
     SetpointR = -driveDist;
   }
-  
-  //Normalize pid output to pwm signal
-  int revLeft = normalizeToPWM(OutputL);
-  int revRight = normalizeToPWM(OutputR);
 }
 
 void changeDirection(bool forced){
@@ -212,8 +209,8 @@ void changeDirection(bool forced){
   tone(SpeakerPin, 200);
 
   //Set encoders back to 0 for pid 
-  encoderLcnt = 0;
-  encoderRcnt = 0;
+  encoderLCount = 0;
+  encoderRCount = 0;
 
   //Determine which wheel goes back or forward
   if (deg < 0){
@@ -253,4 +250,3 @@ void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
   analogWrite(MotorLSpeedPin, motorRSpeed);
   analogWrite(MotorRSpeedPin, motorRSpeed);
 }
-
