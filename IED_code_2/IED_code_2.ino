@@ -7,10 +7,10 @@
 // Define motor pins
 const int MotorLPin1 = 22;
 const int MotorLPin2 = 23;
-const int MotorLSpeedPin = 2;
+const int MotorLSpeedPin = 4;
 const int MotorRPin1 = 24;
 const int MotorRPin2 = 25;
-const int MotorRSpeedPin = 3;
+const int MotorRSpeedPin = 8;
 
 // Define sweeper motor pins
 const int SweeperMotorPinL = 26;
