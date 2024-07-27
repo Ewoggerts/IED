@@ -131,7 +131,8 @@ void setup() {
 }
 
 void loop() {
-  obstacleAvoidance(HCSR04.measureDistanceCm()); //Constantly checks for need direction change
+  double* data = HCSR04.measureDistanceCm()
+  obstacleAvoidance(data); //Constantly checks for need direction change
   /*PID ------------------------------------------------------------------*/
   InputL = encoderLCount;
   InputR = encoderRCount;
@@ -151,6 +152,12 @@ void loop() {
 
 void obstacleAvoidance( double* distances){
   //Returns a boolean that determines if safeDistance has been breached
+  for(unsigned int i = 0; i < 3; i++){
+    Serial.print("dist");
+    Serial.print(i);
+    Serial.print(":");
+    Serial.println(distances[i]);
+  }
   if (checkDist(distances, SafeDistance)){
     changeDirection(false); //Random direction change without a drop
   }
@@ -158,6 +165,10 @@ void obstacleAvoidance( double* distances){
 }
 
 void dropAvoidance() {
+  Serialprint("IrSensorLPin: ");
+  Serialprint(IrSensorLPin);
+  Serialprint(" IrSensorRPin: ");
+  Serialprint(IrSensorRPin);
   drive(-10); //10 cm reverse
   changeDirection(true); //180 direction change if there is a drop
 }
