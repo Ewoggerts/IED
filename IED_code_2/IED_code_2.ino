@@ -2,7 +2,6 @@
 #include <TimerOne.h>
 #include <L298N.h>
 #include <HCSR04.h>
-#include <Functions.ino>
 
 // Define motor pins
 const int MotorLPin1 = 22;
@@ -19,8 +18,8 @@ const int SweeperMotorPinL = 26;
 const int SweeperMotorPinR = 27;
 
 // Define encoder pins
-const int EncoderLPin = 20; 
-const int EncoderRPin = 21; 
+const int EncoderLPin = 20;
+const int EncoderRPin = 21;
 
 // Define ultrasonic sensor pins
 byte triggerPin = 28;
@@ -48,7 +47,7 @@ double SetpointR, InputR, OutputR;
 PID myPIDLeft(&InputL, &OutputL, &SetpointL, Kp, Ki, Kd, DIRECT);
 PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT);
 double maxMotorSpeed = 40; //Max speed of motor in Ticks per Second
- 
+
 // Encoder variables
 volatile long encoderLCount = 0;
 volatile long encoderRCount = 0;
@@ -90,21 +89,21 @@ void setup() {
   // Initialize sweeper motor pins
   pinMode(SweeperMotorPinL, OUTPUT);
   pinMode(SweeperMotorPinR, OUTPUT);
-  
+
   // Initialize encoder pins
   pinMode(EncoderLPin, INPUT);
   pinMode(EncoderRPin, INPUT);
-  
+
   // Initialize ultrasonic sensor pins
   HCSR04.begin(triggerPin, echoPins, echoCount);
-  
+
   // Initialize IR sensor pins
   pinMode(IrSensorLPin, INPUT);
   pinMode(IrSensorRPin, INPUT);
 
   // Initialize speaker pin
   pinMode(SpeakerPin, OUTPUT);
-  
+
   // Initialize serial communication for debugging
   Serial.begin(9600);
 
@@ -112,8 +111,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(EncoderLPin), encoderLcnt, RISING);
   attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
   attachInterrupt(digitalPinToInterrupt(IrSensorLPin), dropAvoidance, FALLING);
-  attachInterrupt(digitalPinToInterrupt(IrSensorRPin), dropAvoidance, FALLING);  
-  
+  attachInterrupt(digitalPinToInterrupt(IrSensorRPin), dropAvoidance, FALLING);
+
   //Give some time to set the car down
   delay(1000);
 
@@ -131,7 +130,7 @@ void setup() {
 }
 
 void loop() {
-  double* data = HCSR04.measureDistanceCm()
+  double* data = HCSR04.measureDistanceCm();
   obstacleAvoidance(data); //Constantly checks for need direction change
   /*PID ------------------------------------------------------------------*/
   InputL = encoderLCount;
@@ -143,39 +142,41 @@ void loop() {
   setMotorSpeed(leftPWM, rightPWM);
   /*PID ------------------------------------------------------------------*/
   //Determines if the car has stopped and reach it desired distance
-  if (OutputL <= 3 && OutputR <= 3){
+  if (OutputL <= 3 && OutputR <= 3) {
     changeDirection(false);
     drive(45); //sets the car to keep driving forward 45cm until another interrupt or distance reached
   }
 
 }
 
-void obstacleAvoidance( double* distances){
+void obstacleAvoidance( double* distances) {
   //Returns a boolean that determines if safeDistance has been breached
-  for(unsigned int i = 0; i < 3; i++){
+  /*
+    for(unsigned int i = 0; i < 3; i++){
     Serial.print("dist");
     Serial.print(i);
     Serial.print(":");
     Serial.println(distances[i]);
-  }
-  if (checkDist(distances, SafeDistance)){
+    }
+  */
+  if (checkDist(distances, SafeDistance)) {
     changeDirection(false); //Random direction change without a drop
   }
   drive(45);
 }
 
 void dropAvoidance() {
-  Serialprint("IrSensorLPin: ");
-  Serialprint(IrSensorLPin);
-  Serialprint(" IrSensorRPin: ");
-  Serialprint(IrSensorRPin);
-  drive(-10); //10 cm reverse
-  changeDirection(true); //180 direction change if there is a drop
+  Serial.print("IrSensorLPin: ");
+  Serial.print(IrSensorLPin);
+  Serial.print(" IrSensorRPin: ");
+  Serial.println(IrSensorRPin);
+  //drive(-10); //10 cm reverse
+  //changeDirection(true); //180 direction change if there is a drop
 }
 
-void forceWait(int margin){
+void forceWait(int margin) {
   //Force wait till adjustment outputs are really small
-  while (OutputL <= margin && OutputR <= margin){
+  while (OutputL <= margin && OutputR <= margin) {
     /*PID ------------------------------------------------------------------*/
     InputL = encoderLCount;
     InputR = encoderRCount;
@@ -188,49 +189,49 @@ void forceWait(int margin){
   }
 }
 
-void drive(int desiredDist){
-  //set encoders back to 0 for pid 
+void drive(int desiredDist) {
+  //set encoders back to 0 for pid
   encoderLCount = 0;
   encoderRCount = 0;
 
-  //forward set dist 
+  //forward set dist
   int driveDist = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
 
   //Set for driving forward
-  if (desiredDist > 0){
+  if (desiredDist > 0) {
     SetpointL = driveDist;
     SetpointR = driveDist;
   }
-  else{ //Set for driving reverse
+  else { //Set for driving reverse
     SetpointL = -driveDist;
     SetpointR = -driveDist;
   }
 }
 
-void changeDirection(bool forced){
+void changeDirection(bool forced) {
   //Forced 180 direction change (in cases where there is a drop)
   int deg = 180;
   int ticks = turnAngleToWheelRev(deg, driveBase, wheelDiameter, ticksPerRev);
 
   //Otherwise random direction change
-  if (!forced){
+  if (!forced) {
     deg = generateRandomValue(-180, 180);
     ticks = turnAngleToWheelRev(deg, driveBase, wheelDiameter, ticksPerRev);
   }
 
-  //Beep to alert close to an object 
+  //Beep to alert close to an object
   tone(SpeakerPin, 200);
 
-  //Set encoders back to 0 for pid 
+  //Set encoders back to 0 for pid
   encoderLCount = 0;
   encoderRCount = 0;
 
   //Determine which wheel goes back or forward
-  if (deg < 0){
+  if (deg < 0) {
     SetpointL = -ticks;
     SetpointR = ticks;
   }
-  else{
+  else {
     SetpointL = ticks;
     SetpointR = -ticks;
   }
@@ -250,7 +251,7 @@ void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
     digitalWrite(MotorLPin2, HIGH);
     motorLSpeed = -motorLSpeed;
   }
-  
+
   if (motorRSpeed > 0) {
     digitalWrite(MotorRPin1, HIGH);
     digitalWrite(MotorRPin2, LOW);
@@ -259,7 +260,7 @@ void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
     digitalWrite(MotorRPin2, HIGH);
     motorRSpeed = -motorRSpeed;
   }
-  
+
   analogWrite(MotorLSpeedPin, motorRSpeed);
   analogWrite(MotorRSpeedPin, motorRSpeed);
 }
