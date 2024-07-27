@@ -146,19 +146,19 @@ void loop() {
     changeDirection(false);
     drive(45); //sets the car to keep driving forward 45cm until another interrupt or distance reached
   }
-
+  delay(500);
 }
 
 void obstacleAvoidance( double* distances) {
   //Returns a boolean that determines if safeDistance has been breached
-  /*
+  
     for(unsigned int i = 0; i < 3; i++){
     Serial.print("dist");
     Serial.print(i);
     Serial.print(":");
     Serial.println(distances[i]);
     }
-  */
+  
   if (checkDist(distances, SafeDistance)) {
     changeDirection(false); //Random direction change without a drop
   }
