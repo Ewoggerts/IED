@@ -1,5 +1,6 @@
 {
-    "board": "arduino:avr:uno",
+    "board": "arduino:avr:mega",
     "programmer": "avrisp",
-    "sketch": "IED_code_2/IED_code_2.ino"
+    "sketch": "IED_code_2/IED_code_2.ino",
+    "configuration": "cpu=atmega2560"
 }
