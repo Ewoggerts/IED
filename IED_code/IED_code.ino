@@ -1,89 +1,80 @@
 #include <PID_v1.h>
+#include <TimerOne.h>
+#include <L298N.h>
+#include <HCSR04.h>
 
 // Define motor pins
-const int MotorLPin1 = 1;
-const int MotorLPin2 = 2;
-const int MotorLSpeedPin = 3;
-const int MotorRPin1 = 4;
-const int MotorRPin2 = 5;
-const int MotorRSpeedPin = 6;
+const int MotorLPin1 = 22;
+const int MotorLPin2 = 23;
+const int MotorLSpeedPin = 44;
+const int MotorRPin1 = 24;
+const int MotorRPin2 = 25;
+const int MotorRSpeedPin = 45;
+
+
 
 // Define sweeper motor pins
-const int SweeperMotorPinL = 7;
-const int SweeperMotorPinR = 8;
+const int SweeperMotorPinL = 26;
+const int SweeperMotorPinR = 27;
 
 // Define encoder pins
-const int EncoderLPin = 9; // Encoder for Motor 1
-const int EncoderRPin = 10; // Encoder for Motor 2
+const int EncoderLPin = 20;
+const int EncoderRPin = 21;
 
 // Define ultrasonic sensor pins
-const int TrigPin1 = 11;
-const int EchoPin1 = 12;
-const int TrigPin2 = 13;
-const int EchoPin2 = 18;
-const int TrigPin3 = 19;
-const int EchoPin3 = 0;
+byte triggerPin = 28;
+byte echoCount = 3;
+byte* echoPins = new byte[3] { 29, 30, 31 };
 
 // Define IR sensor pins
-const int IrSensorLPin = A0;
-const int IrSensorRPin = A1;
+const int IrSensorLPin = 2;
+const int IrSensorRPin = 3;
 
-// Define stop button pin
-const int StopButtonPin = A2;
+// Stop button pin
+const int StopButtonPin = 34; // Updated for Mega
 
-// Define speaker pin
-const int SpeakerPin = A3;
+// Speaker pin
+const int SpeakerPin = 35; // Updated for Mega
 
 // PID parameter
 double Kp = 2, Ki = 5, Kd = 1;
 double SetpointL, InputL, OutputL;
 double SetpointR, InputR, OutputR;
+
+//inputs are ticks recorded
+//output is in ticks in relations to a proportion (ticks per second);
+//setpoint is the total ticks that we want
 PID myPIDLeft(&InputL, &OutputL, &SetpointL, Kp, Ki, Kd, DIRECT);
 PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT);
+double maxMotorSpeed = 40; //Max speed of motor in Ticks per Second
 
 // Encoder variables
 volatile long encoderLCount = 0;
 volatile long encoderRCount = 0;
 
 // Other variables
-const int MaxDistance = 200;  // Maximum distance to check for obstacles
 const int SafeDistance = 30;  // Safe distance from obstacles
-const int IrThreshold = 500;  // Threshold for IR sensors to detect drop
 bool isStopped = false;
-
-// Variables for feedback loop
-double previousDistance = MaxDistance;
-double distanceChangeRate = 0;
-
+int wheelDiameter = 6; //cm
+int ticksPerRev = 20;
+int maxTicksPerSec = 7;
+int stopMargin = 3;
+float driveBase = 5.5;
 /*INTERRUPT FUNCTIONS BELOW*/
 
 // Interrupt service routines for encoders
 void encoderLcnt() {
-  encoder1Count++;
+  encoderLCount++;
+  //debug
+  Serial.print("encoderLCount: ");
+  Serial.println(encoderLCount);
 }
 
 void encoderRcnt() {
-  encoder2Count++;
-}
-
-/*modify so it updates input*/
-void timerIsr()
-{
-  Timer1.detachInterrupt();  //stop the timer
-  int rotationL = (encoderLCount / 20);  // divide by number of holes in Disc
-  int rotationR = (encoderRCount / 20);  // divide by number of holes in Disc
-  encoderLCount=0;  //  reset counter to zero
-  encoderRCount=0;  //  reset counter to zero
-
+  encoderRCount++;
   //debug
-  Serial.print("MotorL Speed: "); 
-  Serial.print(rotationL,DEC);  
-  Serial.print(" Rotation per seconds "); 
-  Serial.print(" MotorR Speed: "); 
-  Serial.print(rotationR,DEC);  
-  Serial.println(" Rotation per seconds"); 
-  Serial.println();
-  Timer1.attachInterrupt( timerIsr );  //enable the timer
+  Serial.print("encoderRCount: ");
+  Serial.println(encoderRCount);
 }
 
 void setup() {
@@ -98,190 +89,157 @@ void setup() {
   // Initialize sweeper motor pins
   pinMode(SweeperMotorPinL, OUTPUT);
   pinMode(SweeperMotorPinR, OUTPUT);
-  
+
   // Initialize encoder pins
   pinMode(EncoderLPin, INPUT);
   pinMode(EncoderRPin, INPUT);
-  
-  // Attach interrupts for encoders
-  attachInterrupt(digitalPinToInterrupt(EncoderLPin), encoderLcnt, RISING);
-  attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
-  
+
   // Initialize ultrasonic sensor pins
-  pinMode(TrigPin1, OUTPUT);
-  pinMode(EchoPin1, INPUT);
-  pinMode(TrigPin2, OUTPUT);
-  pinMode(EchoPin2, INPUT);
-  pinMode(TrigPin3, OUTPUT);
-  pinMode(EchoPin3, INPUT);
-  
+  HCSR04.begin(triggerPin, echoPins, echoCount);
+
   // Initialize IR sensor pins
   pinMode(IrSensorLPin, INPUT);
   pinMode(IrSensorRPin, INPUT);
-  
-  // Initialize stop button pin
-  pinMode(StopButtonPin, INPUT_PULLUP);
 
   // Initialize speaker pin
   pinMode(SpeakerPin, OUTPUT);
-  
+
   // Initialize serial communication for debugging
   Serial.begin(9600);
-  
-  // Initialize PID
-  SetpointA = 0;  // Desired angle to maintain
-  myPIDL.SetMode(AUTOMATIC);
-  myPIDL.SetOutputLimits(-255, 255);
-  SetpointB = 0;  // Desired angle to maintain
-  myPIDR.SetMode(AUTOMATIC);
-  myPIDR.SetOutputLimits(-255, 255);
 
-  /*INTERUPT CODE BELOW*/
+  // Attach interrupts
+  attachInterrupt(digitalPinToInterrupt(EncoderLPin), encoderLcnt, RISING);
+  attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
+  attachInterrupt(digitalPinToInterrupt(IrSensorLPin), dropAvoidance, FALLING);
+  attachInterrupt(digitalPinToInterrupt(IrSensorRPin), dropAvoidance, FALLING);
 
-  // Initalize Timer and Timer Interupt 
-  Timer1.initialize(1000000); // set timer for 1sec
-  Timer1.attachInterrupt( timerIsr ); // enable the timer
-  
-  // Attach Encoder Interrupt
-  attachInterrupt(/*change pin*/, encoderLcnt, RISING);  // increase counter when speed sensor pin goes High
-  attachInterrupt(/*change pin*/, encoderRcnt, RISING);  // increase counter when speed sensor pin goes High
-  
+  //Give some time to set the car down
+  delay(1000);
+
+  // Initialize PID to starting moving the car forward
+  SetpointL = distanceToWheelRev( 40, wheelDiameter, ticksPerRev);  // Intialized Desired distance to reach
+  myPIDLeft.SetMode(AUTOMATIC);
+  myPIDLeft.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); //Set output speed limits (in ticks per second)
+  SetpointR = distanceToWheelRev( 40, wheelDiameter, ticksPerRev);  // Intialized Desired distance to reach
+  myPIDRight.SetMode(AUTOMATIC);
+  myPIDRight.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); //Set output speed limits (in ticks per second)
+
+  // Start the sweeper motors
+  digitalWrite(SweeperMotorPinL, HIGH);
+  digitalWrite(SweeperMotorPinR, HIGH);
 }
 
 void loop() {
-  if (digitalRead(StopButtonPin) == LOW) {
-    isStopped = !isStopped;
-    delay(500);  // Debounce delay
+  double* data = HCSR04.measureDistanceCm();
+  obstacleAvoidance(data); //Constantly checks for need direction change
+  /*PID ------------------------------------------------------------------*/
+  InputL = encoderLCount;
+  InputR = encoderRCount;
+  myPIDLeft.Compute();
+  myPIDRight.Compute();
+  int leftPWM = normalizeToPWM(maxTicksPerSec, maxTicksPerSec);
+  int rightPWM = normalizeToPWM(maxTicksPerSec, maxTicksPerSec);
+  setMotorSpeed(leftPWM, rightPWM);
+  /*PID ------------------------------------------------------------------*/
+  //Determines if the car has stopped and reach it desired distance
+  if (OutputL <= 3 && OutputR <= 3) {
+    changeDirection(false);
+    drive(45); //sets the car to keep driving forward 45cm until another interrupt or distance reached
   }
 
-  if (isStopped) {
-    setMotorSpeed(0, 0);
-    setSweeperMotors(false);
-    noTone(SpeakerPin);
-    return;
-  } else {
-    setSweeperMotors(true);
-  }
-  
-  checkUltrasonicSensors();
-  reverseAndTurn(checkIrSensors());
-  
-  // Update PID input with encoder feedback
-  InputA = //Current Speed
-  InputB = //Current Speed
-  // Update PID
-  myPIDL.Compute();
-  myPIDR.Compute();
-  
-  // Set motor speeds based on PID output
-  int motorLSpeed = constrain(255 + OutputL, 0, 255);
-  int motorRSpeed = constrain(255 + OutputR, 0, 255);
-  
-  setMotorSpeed(motorLSpeed, motorRSpeed);
-  
-  // Debugging information
-  Serial.print("SetpointL: ");
-  Serial.print(SetpointL);
-  Serial.print(" InputL: ");
-  Serial.print(InputL);
-  Serial.print(" OutputL: ");
-  Serial.println(OutputL);
-  Serial.print("SetpointR: ");
-  Serial.print(SetpointR);
-  Serial.print(" InputR: ");
-  Serial.print(InputR);
-  Serial.print(" OutputR: ");
-  Serial.println(OutputR);
-  Serial.println();
-  
 }
 
-long readUltrasonic(int trigPin, int echoPin) {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  
-  long duration = pulseIn(echoPin, HIGH);
-  long distance = duration * 0.034 / 2;
-  
-  return distance;
+void obstacleAvoidance( double* distances) {
+  //Returns a boolean that determines if safeDistance has been breached
+  /*
+    for(unsigned int i = 0; i < 3; i++){
+    Serial.print("dist");
+    Serial.print(i);
+    Serial.print(":");
+    Serial.println(distances[i]);
+    }
+  */
+  if (checkDist(distances, SafeDistance)) {
+    changeDirection(false); //Random direction change without a drop
+  }
+  drive(45);
 }
 
-void checkUltrasonicSensors() {
-  long distance1 = readUltrasonic(TrigPin1, EchoPin1); // Left
-  long distance2 = readUltrasonic(TrigPin2, EchoPin2); // Middle
-  long distance3 = readUltrasonic(TrigPin3, EchoPin3); // Right
-
-  bool left = (distance1 < 30);
-  bool middle = (distance2 < 30);
-  bool right = (distance3 < 30);
-
-  Serial.print("Distance_L: ")
-  Serial.print(distance1);
-  Serial.print(" Distance_M: ")
-  Serial.print(distance2);
-  Serial.print(" Distance_R: ")
-  Serial.println(distance3);
-  Serial.println();
-  
-  // Beep frequency based on closest distance
-  long closestDistance = min(distance1, min(distance2, distance3));
-  if (closestDistance < SafeDistance) {
-    tone(SpeakerPin, 1000 - (closestDistance * 15));  // Beep faster as it gets closer
-  } else {
-    noTone(SpeakerPin);
-  }
-
-  /*FIX LOGIC --------------------------------------------------------------------------------*/
-  if (left && !middle && !right){
-    SetpointA =
-    SetpointB = 
-  }
-  else if (!left && middle && !right){
-    SetpointA =
-    SetpointB = 
-  }
-  else if (!left && !middle && right){
-    SetpointA =
-    SetpointB = 
-  }
-  else if (left && middle && !right){
-    SetpointA =
-    SetpointB = 
-  }
-  else if (left && !middle && right){
-    SetpointA =
-    SetpointB = 
-  }
-  else if (!left && middle && right){
-    SetpointA =
-    SetpointB = 
-  }
-  else if (left && middle && right){
-    SetpointA =
-    SetpointB = 
-  }
-  /*FIX LOGIC --------------------------------------------------------------------------------*/
+void dropAvoidance() {
+  Serial.print("IrSensorLPin: ");
+  Serial.print(IrSensorLPin);
+  Serial.print(" IrSensorRPin: ");
+  Serial.println(IrSensorRPin);
+  //drive(-10); //10 cm reverse
+  //changeDirection(true); //180 direction change if there is a drop
 }
 
-bool checkIrSensors() {
-  int irValueL = analogRead(IrSensorLPin);
-  int irValueR = analogRead(IrSensorRPin);
-  
-  Serial.print("Drop_L: ");
-  Serial.print(irValueL);
-  Serial.print(" Drop_R: ");
-  Serial.println(irValueR);
-  Serial.println();
-
-  if (irValueL < IrThreshold || irValueR < IrThreshold) { // Drop detected
-    return true;
+void forceWait(int margin) {
+  //Force wait till adjustment outputs are really small
+  while (OutputL <= margin && OutputR <= margin) {
+    /*PID ------------------------------------------------------------------*/
+    InputL = encoderLCount;
+    InputR = encoderRCount;
+    myPIDLeft.Compute();
+    myPIDRight.Compute();
+    int leftPWM = normalizeToPWM(maxTicksPerSec, maxTicksPerSec);
+    int rightPWM = normalizeToPWM(maxTicksPerSec, maxTicksPerSec);
+    setMotorSpeed(leftPWM, rightPWM);
+    /*PID ------------------------------------------------------------------*/
   }
-  
-  return false;
+}
 
+void drive(int desiredDist) {
+  //set encoders back to 0 for pid
+  encoderLCount = 0;
+  encoderRCount = 0;
+
+  //forward set dist
+  int driveDist = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
+
+  //Set for driving forward
+  if (desiredDist > 0) {
+    SetpointL = driveDist;
+    SetpointR = driveDist;
+  }
+  else { //Set for driving reverse
+    SetpointL = -driveDist;
+    SetpointR = -driveDist;
+  }
+}
+
+void changeDirection(bool forced) {
+  //Forced 180 direction change (in cases where there is a drop)
+  int deg = 180;
+  int ticks = turnAngleToWheelRev(deg, driveBase, wheelDiameter, ticksPerRev);
+
+  //Otherwise random direction change
+  if (!forced) {
+    deg = generateRandomValue(-180, 180);
+    ticks = turnAngleToWheelRev(deg, driveBase, wheelDiameter, ticksPerRev);
+  }
+
+  //Beep to alert close to an object
+  tone(SpeakerPin, 200);
+
+  //Set encoders back to 0 for pid
+  encoderLCount = 0;
+  encoderRCount = 0;
+
+  //Determine which wheel goes back or forward
+  if (deg < 0) {
+    SetpointL = -ticks;
+    SetpointR = ticks;
+  }
+  else {
+    SetpointL = ticks;
+    SetpointR = -ticks;
+  }
+
+  forceWait(stopMargin);
+
+  //End alert sound after direction change finished
+  noTone(SpeakerPin);
 }
 
 void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
@@ -293,7 +251,7 @@ void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
     digitalWrite(MotorLPin2, HIGH);
     motorLSpeed = -motorLSpeed;
   }
-  
+
   if (motorRSpeed > 0) {
     digitalWrite(MotorRPin1, HIGH);
     digitalWrite(MotorRPin2, LOW);
@@ -302,24 +260,7 @@ void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
     digitalWrite(MotorRPin2, HIGH);
     motorRSpeed = -motorRSpeed;
   }
-  
+
   analogWrite(MotorLSpeedPin, motorRSpeed);
   analogWrite(MotorRSpeedPin, motorRSpeed);
-}
-
-void reverseAndTurn(bool x) {
-  if (x == true){
-    SetpointA =
-    SetpointB = 
-  }
-}
-
-void setSweeperMotors(bool state) {
-  if (state) {
-    digitalWrite(SweeperMotorPinL, HIGH);
-    digitalWrite(SweeperMotorPinR, LOW);
-  } else {
-    digitalWrite(SweeperMotorPinL, LOW);
-    digitalWrite(SweeperMotorPinR, LOW);
-  }
 }
