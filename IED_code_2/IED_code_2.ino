@@ -22,9 +22,12 @@ const int EncoderLPin = 20;
 const int EncoderRPin = 21;
 
 // Define ultrasonic sensor pins
-byte triggerPin = 28;
-byte echoCount = 3;
-byte* echoPins = new byte[3] { 29, 30, 31 };
+const int UltraSonicTrigLeft = 28;
+const int UltraSonicTrigMid = 29;
+const int UltraSonicTrigRight = 30;
+const int UltraSonicEchoLeft = 31;
+const int UltraSonicEchoMid = 32;
+const int UltraSonicEchoRight = 33;
 
 // Define IR sensor pins
 const int IrSensorLPin = 2;
@@ -95,7 +98,12 @@ void setup() {
   pinMode(EncoderRPin, INPUT);
 
   // Initialize ultrasonic sensor pins
-  HCSR04.begin(triggerPin, echoPins, echoCount);
+  pinMode(UltraSonicTrigLeft, OUTPUT);
+  pinMode(UltraSonicTrigMid, OUTPUT);
+  pinMode(UltraSonicTrigRight, OUTPUT);
+  pinMode(UltraSonicEchoLeft, INPUT);
+  pinMode(UltraSonicEchoMid, INPUT);
+  pinMode(UltraSonicEchoRight, INPUT);
 
   // Initialize IR sensor pins
   pinMode(IrSensorLPin, INPUT);
@@ -130,7 +138,7 @@ void setup() {
 }
 
 void loop() {
-  double* data = HCSR04.measureDistanceCm();
+  long* data = readAllDistances();
   obstacleAvoidance(data); //Constantly checks for need direction change
   /*PID ------------------------------------------------------------------*/
   InputL = encoderLCount;
@@ -149,7 +157,7 @@ void loop() {
   delay(500);
 }
 
-void obstacleAvoidance( double* distances) {
+void obstacleAvoidance( long* distances) {
   //Returns a boolean that determines if safeDistance has been breached
   
     for(unsigned int i = 0; i < 3; i++){
@@ -161,8 +169,9 @@ void obstacleAvoidance( double* distances) {
   
   if (checkDist(distances, SafeDistance)) {
     changeDirection(false); //Random direction change without a drop
+    drive(45);
   }
-  drive(45);
+  
 }
 
 void dropAvoidance() {
@@ -263,4 +272,19 @@ void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
 
   analogWrite(MotorLSpeedPin, motorRSpeed);
   analogWrite(MotorRSpeedPin, motorRSpeed);
+}
+
+long* readAllDistances() {
+  static long distances[3];
+
+  // Trigger and read left sensor
+  distances[0] = getDistance(UltraSonicTrigLeft, UltraSonicEchoLeft);
+
+  // Trigger and read middle sensor
+  distances[1] = getDistance(UltraSonicTrigMid, UltraSonicEchoMid);
+
+  // Trigger and read right sensor
+  distances[2] = getDistance(UltraSonicTrigRight, UltraSonicEchoRight);
+
+  return distances;
 }

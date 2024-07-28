@@ -29,7 +29,7 @@ int generateRandomValue(int minVal, int maxVal) {
   return random(minVal, maxVal + 1); // +1 to include maxVal
 }
 
-boolean checkDist(double* distances, int SafeDistance){
+boolean checkDist(long* distances, int SafeDistance){
   //check if direction change is required
   for(unsigned int i = 0; i < 3; i++){
     if (distances[i] < SafeDistance){
@@ -38,4 +38,19 @@ boolean checkDist(double* distances, int SafeDistance){
   }
 }
 
+long getDistance(int trigPin, int echoPin) {
+  // Send a pulse to trigger the sensor
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
 
+  // Measure the duration of the echo pulse
+  long duration = pulseIn(echoPin, HIGH);
+
+  // Convert the duration to distance in cm
+  long distance = duration * 0.034 / 2;
+
+  return distance;
+}
