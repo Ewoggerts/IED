@@ -1,15 +1,13 @@
 #include <PID_v1.h>
-#include <TimerOne.h>
-#include <L298N.h>
-#include <HCSR04.h>
+
 
 // Define motor pins
-const int MotorLPin1 = 22;
-const int MotorLPin2 = 23;
-const int MotorLSpeedPin = 44;
-const int MotorRPin1 = 24;
-const int MotorRPin2 = 25;
-const int MotorRSpeedPin = 45;
+const int MotorLPin1 = 24;
+const int MotorLPin2 = 25;
+const int MotorLSpeedPin = 45;
+const int MotorRPin1 = 22;
+const int MotorRPin2 = 23;
+const int MotorRSpeedPin = 44;
 
 // Define sweeper motor pins
 const int SweeperMotorPinL = 26;
@@ -56,12 +54,17 @@ volatile long encoderRCount = 0;
 // Other variables
 const int SafeDistance = 30;  // Safe distance from obstacles
 bool isStopped = false;
-int wheelDiameter = 6; //cm
+int wheelDiameter = 5; //cm
 int ticksPerRev = 20;
 int maxTicksPerSec = 100;
-int stopMargin = 5;
-float driveBase = 5.5;
+int stopMargin = 15;
+float driveBase = 18.5;
+int leftPWM = 0;
+int rightPWM = 0;
 
+//flag
+int stoppedL = 0;
+int stoppedR = 0;
 
 /*INTERRUPT FUNCTIONS BELOW*/
 
@@ -129,10 +132,10 @@ void setup() {
   delay(2000);
 
   // Initialize PID to start moving the car forward
-  SetpointL = distanceToWheelRev(40, wheelDiameter, ticksPerRev);  // Initialize Desired distance to reach
+  SetpointL = distanceToWheelRev(300, wheelDiameter, ticksPerRev);  // Initialize Desired distance to reach
   myPIDLeft.SetMode(AUTOMATIC);
   myPIDLeft.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); // Set output speed limits (in ticks per second)
-  SetpointR = distanceToWheelRev(40, wheelDiameter, ticksPerRev);  // Initialize Desired distance to reach
+  SetpointR = distanceToWheelRev(300, wheelDiameter, ticksPerRev);  // Initialize Desired distance to reach
   myPIDRight.SetMode(AUTOMATIC);
   myPIDRight.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); // Set output speed limits (in ticks per second)
 
@@ -147,27 +150,53 @@ void loop() {
   
   Serial.println("MAINLOOP!!!!");
   long* data = readAllDistances();
-  obstacleAvoidance(data); // Constantly checks for the need for direction change
+  //obstacleAvoidance(data); // Constantly checks for the need for direction change
 
   /* PID ------------------------------------------------------------------ */
   InputL = encoderLCount;
   InputR = encoderRCount;
-  myPIDLeft.Compute();
-  myPIDRight.Compute();
-  int leftPWM = normalizeToPWM(maxTicksPerSec, OutputL);  // Fixed to use OutputL
-  int rightPWM = normalizeToPWM(maxTicksPerSec, OutputR); // Fixed to use OutputR
-  setMotorSpeed(leftPWM, rightPWM);
+
+  
+
+  if (!stoppedL){
+    Serial.println("PID-LEFT");
+    myPIDLeft.Compute();
+    leftPWM = normalizeToPWM(maxTicksPerSec, OutputL);  // Fixed to use OutputL
+    setMotorSpeedL(leftPWM);
+  }
+  if (!stoppedR){
+    Serial.println("PID-RIGHT");
+    myPIDRight.Compute();
+    rightPWM = normalizeToPWM(maxTicksPerSec, OutputR); // Fixed to use OutputR
+    setMotorSpeedR(rightPWM);
+  }
+ 
   /* PID ------------------------------------------------------------------ */
 
-  // Debugging info
-  Serial.print("Loop InputL: ");
+  // Debugging info  
+  Serial.print("Loop - InputL: ");
   Serial.print(InputL);
   Serial.print(" InputR: ");
   Serial.print(InputR);
   Serial.print(" OutputL: ");
   Serial.print(OutputL);
   Serial.print(" OutputR: ");
-  Serial.println(OutputR);
+  Serial.print(OutputR);
+  Serial.print(" SetpointL: ");
+  Serial.print(SetpointL);
+  Serial.print(" SetpointR: ");
+  Serial.println(SetpointR);
+  
+
+  stopPoint(OutputL, OutputR);
+
+  Serial.print("StopLFlag: ");
+  Serial.print(stoppedL);
+  Serial.print(" StopRFlag: ");
+  Serial.println(stoppedR);
+  Serial.println();
+  delay(1000);
+  
 }
 
 void obstacleAvoidance(long* distances) {
@@ -212,7 +241,9 @@ void forceWait(int margin) {
     myPIDRight.Compute();
     int leftPWM = normalizeToPWM(maxTicksPerSec, OutputL);  // Fixed to use OutputL
     int rightPWM = normalizeToPWM(maxTicksPerSec, OutputR); // Fixed to use OutputR
-    setMotorSpeed(leftPWM, rightPWM);
+    setMotorSpeedR(leftPWM);
+    setMotorSpeedR(rightPWM);
+    
     /* PID ------------------------------------------------------------------ */
   }
 
@@ -294,12 +325,11 @@ void changeDirection(bool forced) {
   Serial.println("Direction change completed.");
 }
 
-void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
+void setMotorSpeedL(int motorLSpeed) {
   // Debugging info
   Serial.print("Setting motor speeds - Left: ");
-  Serial.print(motorLSpeed);
-  Serial.print(", Right: ");
-  Serial.println(motorRSpeed);
+  Serial.println(motorLSpeed);
+
 
   if (motorLSpeed > 0) {
     digitalWrite(MotorLPin1, HIGH);
@@ -309,7 +339,15 @@ void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
     digitalWrite(MotorLPin2, HIGH);
     motorLSpeed = -motorLSpeed;
   }
+  analogWrite(MotorLSpeedPin, motorLSpeed);
+  
+}
 
+void setMotorSpeedR(int motorRSpeed) {
+  // Debugging info
+  Serial.print("Setting motor speeds - Right: ");
+  Serial.println(motorRSpeed);
+  
   if (motorRSpeed > 0) {
     digitalWrite(MotorRPin1, HIGH);
     digitalWrite(MotorRPin2, LOW);
@@ -318,9 +356,31 @@ void setMotorSpeed(int motorLSpeed, int motorRSpeed) {
     digitalWrite(MotorRPin2, HIGH);
     motorRSpeed = -motorRSpeed;
   }
-
-  analogWrite(MotorLSpeedPin, motorLSpeed);
   analogWrite(MotorRSpeedPin, motorRSpeed);
+}
+
+void stopPoint(int setpL, int setpR) {
+  // Debugging info
+  Serial.print("Output - Left: ");
+  Serial.print(setpL);
+  Serial.print(", Right: ");
+  Serial.println(setpR);
+
+  if (setpL < stopMargin) {
+    Serial.println("STOP-LEFT");
+    analogWrite(MotorLSpeedPin, 0);
+    encoderLCount = 0;
+    SetpointL = 0;
+    stoppedL = 1;
+  }
+
+  if (setpR < stopMargin) {
+    Serial.println("STOP-RIGHT");
+    analogWrite(MotorRSpeedPin, 0);
+    encoderRCount = 0;
+    SetpointR = 0;
+    stoppedR = 1;
+  }
 }
 
 long* readAllDistances() {
