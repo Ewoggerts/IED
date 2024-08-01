@@ -25,8 +25,17 @@ float normalizeToPWM(float maxTicksPerSec, float inputTicksPerSec) {
   return normalizedPWMVal;
 }
 
-int generateRandomValue(int minVal, int maxVal) {
-  return random(minVal, maxVal + 1); // +1 to include maxVal
+int generateRandomValue() {
+  // Generate a random boolean to decide the range
+  bool isNegative = random(0, 2);
+
+  if (isNegative) {
+    // Return a random value between -60 to -180
+    return random(-180, -59);
+  } else {
+    // Return a random value between 60 to 180
+    return random(60, 181);
+  }
 }
 
 boolean checkDist(long* distances, int SafeDistance){
@@ -36,6 +45,7 @@ boolean checkDist(long* distances, int SafeDistance){
       return true;
     }
   }
+  return false;
 }
 
 long getDistance(int trigPin, int echoPin) {

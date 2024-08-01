@@ -9,9 +9,19 @@ const int MotorRPin1 = 22;
 const int MotorRPin2 = 23;
 const int MotorRSpeedPin = 44;
 
+const int MotorLPin1_dup = 36;
+const int MotorLPin2_dup = 37;
+const int MotorLSpeedPin_dup = 46;
+const int MotorRPin1_dup = 38;
+const int MotorRPin2_dup = 39;
+const int MotorRSpeedPin_dup = 4;
+
 // Define sweeper motor pins
 const int SweeperMotorPinL = 26;
 const int SweeperMotorPinR = 27;
+
+const int SweeperMotorPinL_dup = 40;
+const int SweeperMotorPinR_dup = 41;
 
 // Define encoder pins
 const int EncoderLPin = 20;
@@ -45,7 +55,7 @@ double SetpointR, InputR, OutputR;
 //setpoint is the total ticks that we want
 PID myPIDLeft(&InputL, &OutputL, &SetpointL, Kp, Ki, Kd, DIRECT);
 PID myPIDRight(&InputR, &OutputR, &SetpointR, Kp, Ki, Kd, DIRECT);
-double maxMotorSpeed = 40; //Max speed of motor in Ticks per Second
+double maxMotorSpeed = 100; //Max speed of motor in Ticks per Second
 
 // Encoder variables
 volatile long encoderLCount = 0;
@@ -92,9 +102,19 @@ void setup() {
   pinMode(MotorRPin2, OUTPUT);
   pinMode(MotorRSpeedPin, OUTPUT);
 
+  pinMode(MotorLPin1_dup, OUTPUT);
+  pinMode(MotorLPin2_dup, OUTPUT);
+  pinMode(MotorLSpeedPin_dup, OUTPUT);
+  pinMode(MotorRPin1_dup, OUTPUT);
+  pinMode(MotorRPin2_dup, OUTPUT);
+  pinMode(MotorRSpeedPin_dup, OUTPUT);
+
   // Initialize sweeper motor pins
   pinMode(SweeperMotorPinL, OUTPUT);
   pinMode(SweeperMotorPinR, OUTPUT);
+  
+  pinMode(SweeperMotorPinL_dup, OUTPUT);
+  pinMode(SweeperMotorPinR_dup, OUTPUT);
 
   // Initialize encoder pins
   pinMode(EncoderLPin, INPUT);
@@ -127,6 +147,10 @@ void setup() {
   //sweeper motors
   digitalWrite(SweeperMotorPinL, HIGH);
   digitalWrite(SweeperMotorPinR, LOW);
+  
+  digitalWrite(SweeperMotorPinL_dup, HIGH);
+  digitalWrite(SweeperMotorPinR_dup, LOW);
+
 
   // Give some time to set the car down
   delay(2000);
@@ -150,7 +174,7 @@ void loop() {
   
   Serial.println("MAINLOOP!!!!");
   long* data = readAllDistances();
-  obstacleAvoidance(data); // Constantly checks for the need for direction change
+  //obstacleAvoidance(data); // Constantly checks for the need for direction change
 
   /* PID ------------------------------------------------------------------ */
   InputL = encoderLCount;
@@ -357,16 +381,20 @@ void setMotorSpeedL(int motorLSpeed) {
   Serial.print("Setting motor speeds - Left: ");
   Serial.println(motorLSpeed);
 
-
   if (motorLSpeed > 0) {
     digitalWrite(MotorLPin1, HIGH);
     digitalWrite(MotorLPin2, LOW);
+    digitalWrite(MotorLPin1_dup, HIGH);
+    digitalWrite(MotorLPin2_dup, LOW);
   } else {
     digitalWrite(MotorLPin1, LOW);
     digitalWrite(MotorLPin2, HIGH);
+    digitalWrite(MotorLPin1_dup, LOW);
+    digitalWrite(MotorLPin2_dup, HIGH);
     motorLSpeed = -motorLSpeed;
   }
   analogWrite(MotorLSpeedPin, motorLSpeed);
+  analogWrite(MotorLSpeedPin_dup, motorLSpeed);
   
 }
 
@@ -378,12 +406,17 @@ void setMotorSpeedR(int motorRSpeed) {
   if (motorRSpeed > 0) {
     digitalWrite(MotorRPin1, HIGH);
     digitalWrite(MotorRPin2, LOW);
+    digitalWrite(MotorRPin1_dup, HIGH);
+    digitalWrite(MotorRPin2_dup, LOW);
   } else {
     digitalWrite(MotorRPin1, LOW);
     digitalWrite(MotorRPin2, HIGH);
+    digitalWrite(MotorRPin1_dup, LOW);
+    digitalWrite(MotorRPin2_dup, HIGH);
     motorRSpeed = -motorRSpeed;
   }
   analogWrite(MotorRSpeedPin, motorRSpeed);
+  analogWrite(MotorRSpeedPin_dup, motorRSpeed);
 }
 
 void stopPoint(int setpL, int setpR) {
