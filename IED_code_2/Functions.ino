@@ -9,7 +9,7 @@ float turnAngleToWheelRev(float turnAngle, float driveBase, float wheelDiameter,
   float wheelRevPerFullRotation = turnCircumference / distPerWheelRev;
   float degreeChangePerWheelRev = wheelRevPerFullRotation / 360;
   float outputTicks = turnAngle * degreeChangePerWheelRev * ticksPerRev;
-  return outputTicks;
+  return outputTicks*2;
 }
 
 // Converts input travel distance to the required number of wheel rotations to achieve that distance

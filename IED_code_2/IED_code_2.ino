@@ -67,7 +67,7 @@ bool isStopped = false;
 int wheelDiameter = 5; //cm
 int ticksPerRev = 20;
 int maxTicksPerSec = 100;
-int stopMargin = 15;
+int stopMargin = 2;
 float driveBase = 18.5;
 int leftPWM = 0;
 int rightPWM = 0;
@@ -75,19 +75,31 @@ int rightPWM = 0;
 //flag
 int stoppedL = 0;
 int stoppedR = 0;
+int reverseL = 0;
+int reverseR = 0;
 
 /*INTERRUPT FUNCTIONS BELOW*/
 
 // Interrupt service routines for encoders
 void encoderLcnt() {
-  encoderLCount++;
+  if (reverseL){
+    encoderLCount--;
+  }
+  else{
+    encoderLCount++;
+  }
   //debug
   //Serial.print("encoderLCount: ");
   //Serial.println(encoderLCount);
 }
 
 void encoderRcnt() {
-  encoderRCount++;
+  if (reverseR){
+    encoderRCount--;
+  }
+  else{
+    encoderRCount++;
+  }
   //debug
   //Serial.print("encoderRCount: ");
   //Serial.println(encoderRCount);
@@ -174,7 +186,7 @@ void loop() {
   
   Serial.println("MAINLOOP!!!!");
   long* data = readAllDistances();
-  //obstacleAvoidance(data); // Constantly checks for the need for direction change
+  obstacleAvoidance(data); // Constantly checks for the need for direction change
 
   /* PID ------------------------------------------------------------------ */
   InputL = encoderLCount;
@@ -227,7 +239,7 @@ void obstacleAvoidance(long* distances) {
     Serial.println();
     Serial.println("SAFE DIST BREACH ---------------------------------------------------------");
     changeDirection(false); // Random direction change without a drop
-    drive(200);
+    //drive(200);
     Serial.println("SAFE DIST RESET ----------------------------------------------------------");
   }
 }
@@ -367,6 +379,12 @@ void changeDirection(bool forced) {
   Serial.print(SetpointL);
   Serial.print(" SetpointR: ");
   Serial.println(SetpointR);
+  
+  Serial.print("StopLFlag: ");
+  Serial.print(stoppedL);
+  Serial.print(" StopRFlag: ");
+  Serial.println(stoppedR);
+  Serial.println();
 
   forceWait(5);
 
@@ -386,12 +404,14 @@ void setMotorSpeedL(int motorLSpeed) {
     digitalWrite(MotorLPin2, LOW);
     digitalWrite(MotorLPin1_dup, HIGH);
     digitalWrite(MotorLPin2_dup, LOW);
+    reverseL = 0;
   } else {
     digitalWrite(MotorLPin1, LOW);
     digitalWrite(MotorLPin2, HIGH);
     digitalWrite(MotorLPin1_dup, LOW);
     digitalWrite(MotorLPin2_dup, HIGH);
     motorLSpeed = -motorLSpeed;
+    reverseR = 1;
   }
   analogWrite(MotorLSpeedPin, motorLSpeed);
   analogWrite(MotorLSpeedPin_dup, motorLSpeed);
@@ -408,35 +428,39 @@ void setMotorSpeedR(int motorRSpeed) {
     digitalWrite(MotorRPin2, LOW);
     digitalWrite(MotorRPin1_dup, HIGH);
     digitalWrite(MotorRPin2_dup, LOW);
+    reverseR = 0;
   } else {
     digitalWrite(MotorRPin1, LOW);
     digitalWrite(MotorRPin2, HIGH);
     digitalWrite(MotorRPin1_dup, LOW);
     digitalWrite(MotorRPin2_dup, HIGH);
     motorRSpeed = -motorRSpeed;
+    reverseR = 1;
   }
   analogWrite(MotorRSpeedPin, motorRSpeed);
   analogWrite(MotorRSpeedPin_dup, motorRSpeed);
 }
 
-void stopPoint(int setpL, int setpR) {
+void stopPoint(float setpL, float setpR) {
   // Debugging info
   Serial.print("Output - Left: ");
   Serial.print(setpL);
   Serial.print(", Right: ");
   Serial.println(setpR);
 
-  if (setpL < stopMargin) {
+  if (abs(setpL) < stopMargin) {
     Serial.println("STOP-LEFT");
     analogWrite(MotorLSpeedPin, 0);
+    analogWrite(MotorLSpeedPin_dup, 0);
     encoderLCount = 0;
     SetpointL = 0;
     stoppedL = 1;
   }
 
-  if (setpR < stopMargin) {
+  if (abs(setpR) < stopMargin) {
     Serial.println("STOP-RIGHT");
     analogWrite(MotorRSpeedPin, 0);
+    analogWrite(MotorRSpeedPin_dup, 0);
     encoderRCount = 0;
     SetpointR = 0;
     stoppedR = 1;
