@@ -1,5 +1,4 @@
-#include "IED_code_2.ino"
-#include "vdc.ino"
+
 
 const float pi = 3.1415926535;
 
@@ -10,7 +9,7 @@ float turnAngleToWheelRev(float turnAngle, float driveBase, float wheelDiameter,
   float wheelRevPerFullRotation = turnCircumference / distPerWheelRev;
   float degreeChangePerWheelRev = wheelRevPerFullRotation / 360;
   float outputTicks = turnAngle * degreeChangePerWheelRev * ticksPerRev;
-  return outputTicks*2;
+  return outputTicks;
 }
 
 // Converts input travel distance to the required number of wheel rotations to achieve that distance
@@ -23,6 +22,14 @@ float distanceToWheelRev(float travelDistance, float wheelDiameter, int ticksPer
 // Normalizes an input(Ticks per Second) to PWM output using maximum tested encoder ticks per second
 float normalizeToPWM(float maxTicksPerSec, float inputTicksPerSec) {
   float normalizedPWMVal = map(inputTicksPerSec, -maxTicksPerSec, maxTicksPerSec, -255, 255);
+    // Ensure the absolute value is at least 75
+  if (fabs(normalizedPWMVal) < 200) {
+    if (normalizedPWMVal < 0) {
+      normalizedPWMVal = -175;
+    } else {
+      normalizedPWMVal = 175;
+    }
+  }
   return normalizedPWMVal;
 }
 
@@ -32,10 +39,10 @@ int generateRandomValue() {
 
   if (isNegative) {
     // Return a random value between -60 to -180
-    return random(-180, -59);
+    return random(-180, -75);
   } else {
     // Return a random value between 60 to 180
-    return random(60, 181);
+    return random(75, 181);
   }
 }
 

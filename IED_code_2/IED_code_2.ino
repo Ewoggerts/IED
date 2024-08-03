@@ -1,6 +1,5 @@
 #include <PID_v1.h>
-#include "Functions.ino"
-#include "vdc.ino"
+
 
 // Define motor pins
 const int MotorLPin1 = 24;
@@ -47,7 +46,7 @@ const int StopButtonPin = 34; // Updated for Mega
 const int SpeakerPin = 35; // Updated for Mega
 
 // PID parameters
-double Kp = 1, Ki = 5, Kd = 1;
+double Kp = 0.3, Ki = 0, Kd = 0;
 double SetpointL, InputL, OutputL;
 double SetpointR, InputR, OutputR;
 
@@ -63,12 +62,12 @@ volatile long encoderLCount = 0;
 volatile long encoderRCount = 0;
 
 // Other variables
-const int SafeDistance = 20;  // Safe distance from obstacles
+const int SafeDistance = 25;  // Safe distance from obstacles
 bool isStopped = false;
 int wheelDiameter = 5; //cm
 int ticksPerRev = 20;
 int maxTicksPerSec = 100;
-int stopMargin = 25;
+int stopMargin = 5;
 float driveBase = 18.5;
 int leftPWM = 0;
 int rightPWM = 0;
@@ -78,6 +77,7 @@ int stoppedL = 0;
 int stoppedR = 0;
 int reverseL = 0;
 int reverseR = 0;
+int dropFlag = 0;
 
 /*INTERRUPT FUNCTIONS BELOW*/
 
@@ -85,9 +85,13 @@ int reverseR = 0;
 void encoderLcnt() {
   if (reverseL){
     encoderLCount--;
+    //Serial.println();
+    //Serial.println("L--");
   }
   else{
     encoderLCount++;
+    //Serial.println();
+    //Serial.println("L++");
   }
   //debug
   //Serial.print("encoderLCount: ");
@@ -154,8 +158,8 @@ void setup() {
   // Attach interrupts
   attachInterrupt(digitalPinToInterrupt(EncoderLPin), encoderLcnt, RISING);
   attachInterrupt(digitalPinToInterrupt(EncoderRPin), encoderRcnt, RISING);
-  attachInterrupt(digitalPinToInterrupt(IrSensorLPin), dropAvoidance, FALLING);
-  attachInterrupt(digitalPinToInterrupt(IrSensorRPin), dropAvoidance, FALLING);
+  attachInterrupt(digitalPinToInterrupt(IrSensorLPin), dropAvoidance, RISING);
+  attachInterrupt(digitalPinToInterrupt(IrSensorRPin), dropAvoidance, RISING);
 
   //sweeper motors
   digitalWrite(SweeperMotorPinL, HIGH);
@@ -176,17 +180,41 @@ void setup() {
   myPIDRight.SetMode(AUTOMATIC);
   myPIDRight.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); // Set output speed limits (in ticks per second)
 
-  
-
   // Debugging info
-  Serial.println("Setup completed.");
+  Serial.println("SETUP COMPLETE");
+
+  long* data = readAllDistances();
+  obstacleAvoidance(data); // Constantly checks for obstacles
 }
 
 void loop() {
   // MAINLOOP LOGIC DEBUG
-  Serial.println("MAINLOOP!!!!");
+  Serial.println("MAINLOOP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
+  //Keep moving forward if this happens
+  if (SetpointL == 0 && SetpointR == 0 && stoppedL && stoppedR){
+    delay(500);
+    changeDirection(false);
+    drive(100);
+    stoppedL = 0;
+    stoppedR = 0;
+  }
+
+  //Handles drop detection
+ /* if (dropFlag){
+    Serial.println();
+    Serial.println("DROP DETECTED -----------------------------------------------------------");
+    drive(-25); // reverse
+    forceWait(stopMargin);
+    Serial.println("EMERGENCY FINISHED");
+    changeDirection(true); 
+    delay(1000);
+    dropFlag = 0;
+    Serial.println("DROP AVOIDED -----------------------------------------------------------");
+  }*/
+  
   long* data = readAllDistances();
-  obstacleAvoidance(data); // Constantly checks for the need for direction change
+  obstacleAvoidance(data); // Constantly checks for obstacles
 
   /* PID ------------------------------------------------------------------ */
   InputL = encoderLCount;
@@ -205,15 +233,14 @@ void loop() {
     rightPWM = normalizeToPWM(maxTicksPerSec, OutputR); // Fixed to use OutputR
     setMotorSpeedR(rightPWM);
   }
-
-    Serial.print("ReverseLFlag: ");
-    Serial.print(reverseL);
-    Serial.print(" ReverseRFlag: ");
-    Serial.println(reverseR);
-    Serial.println();
   /* PID ------------------------------------------------------------------ */
 
   // Debugging info for PID
+  Serial.print("ReverseLFlag: ");
+  Serial.print(reverseL);
+  Serial.print(" ReverseRFlag: ");
+  Serial.println(reverseR);
+
   Serial.print("Loop - InputL: ");
   Serial.print(InputL);
   Serial.print(" InputR: ");

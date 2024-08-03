@@ -1,5 +1,4 @@
-#include "functions.ino"
-#include "IED_code_2.ino"
+
 
 void obstacleAvoidance(long* distances) {
   // Returns a boolean that determines if safeDistance has been breached 
@@ -7,30 +6,27 @@ void obstacleAvoidance(long* distances) {
     Serial.println();
     Serial.println("SAFE DIST BREACH ---------------------------------------------------------");
     changeDirection(false); // Random direction change without a drop
-    //drive(200);
+    delay(1000);
     Serial.println("SAFE DIST RESET ----------------------------------------------------------");
   }
 }
 
 void dropAvoidance() {
-  Serial.println("Drop detected by IR sensors.");
-  drive(-25); // 10 cm reverse
-  Serial.println("EMERGENCY REVERSING");
-  forceWait(stopMargin);
-  Serial.println("EMERGENCY FINISHED");
-  // Uncomment if 180 direction change is needed
-  changeDirection(true); // 180 direction change if there is a drop
+  dropFlag = 1;
 }
 
 void forceWait(int margin) {
   // Debugging info
-  Serial.println("FORCE-WAIT activated.");
+  Serial.println();
+  Serial.println("FORCE-WAIT -------------------------------------------------------------");
 
   // Force wait till adjustment outputs are really small
   while (!stoppedL || !stoppedR) {
+    Serial.println("FORCE WAIT LOOP ... ... ... ... ...");
     /* PID ------------------------------------------------------------------ */
-    
-    Serial.println("forced wait loop ... ...");
+    //long* data = readAllDistances();
+    //obstacleAvoidance(data); // Constantly checks for the need for direction change
+
     InputL = encoderLCount;
     InputR = encoderRCount;
 
@@ -49,6 +45,11 @@ void forceWait(int margin) {
     /* PID ------------------------------------------------------------------ */
 
       // Debugging info  
+    Serial.print("ReverseLFlag: ");
+    Serial.print(reverseL);
+    Serial.print(" ReverseRFlag: ");
+    Serial.println(reverseR);
+    
     Serial.print("Loop - InputL: ");
     Serial.print(InputL);
     Serial.print(" InputR: ");
@@ -62,7 +63,6 @@ void forceWait(int margin) {
     Serial.print(" SetpointR: ");
     Serial.println(SetpointR);
     
-    
     stopPoint(OutputL, OutputR);
     
     Serial.print("StopLFlag: ");
@@ -70,12 +70,10 @@ void forceWait(int margin) {
     Serial.print(" StopRFlag: ");
     Serial.println(stoppedR);
     Serial.println();
-    
-
   }
 
   // Debugging info
-  Serial.println("FORCE-WAIT completed.");
+  Serial.println("FORCE-WAIT COMPLETED-------------------------------------------------------------");
 }
 
 void drive(int desiredDist) {
@@ -91,16 +89,9 @@ void drive(int desiredDist) {
   // Forward set distance
   int driveDist = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
 
-  // Set for driving forward
-  if (desiredDist > 0) {
-    SetpointL = driveDist;
-    SetpointR = driveDist;
-  }
-  else { // Set for driving reverse
-    SetpointL = -driveDist;
-    SetpointR = -driveDist;
-  }
-
+  SetpointL = driveDist;
+  SetpointR = driveDist;
+  
   // Debugging info
   Serial.print("Drive SetpointL: ");
   Serial.print(SetpointL);
@@ -181,7 +172,7 @@ void setMotorSpeedL(int motorLSpeed) {
     digitalWrite(MotorLPin1_dup, LOW);
     digitalWrite(MotorLPin2_dup, HIGH);
     motorLSpeed = -motorLSpeed;
-    reverseR = 1;
+    reverseL = 1;
   }
   analogWrite(MotorLSpeedPin, motorLSpeed);
   analogWrite(MotorLSpeedPin_dup, motorLSpeed);
