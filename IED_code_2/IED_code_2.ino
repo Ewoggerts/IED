@@ -36,8 +36,8 @@ const int UltraSonicEchoMid = 32;
 const int UltraSonicEchoRight = 33;
 
 // Define IR sensor pins
-const int IrSensorLPin = 2;
-const int IrSensorRPin = 3;
+const int IrSensorLPin = 3;
+const int IrSensorRPin = 2;
 
 // Stop button pin
 const int StopButtonPin = 34; // Updated for Mega
