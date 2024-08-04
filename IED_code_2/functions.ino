@@ -21,13 +21,13 @@ float distanceToWheelRev(float travelDistance, float wheelDiameter, int ticksPer
 
 // Normalizes an input(Ticks per Second) to PWM output using maximum tested encoder ticks per second
 float normalizeToPWM(float maxTicksPerSec, float inputTicksPerSec) {
-  float normalizedPWMVal = map(inputTicksPerSec, -maxTicksPerSec, maxTicksPerSec, -255, 255);
+  float normalizedPWMVal = map(inputTicksPerSec, -maxTicksPerSec, maxTicksPerSec, -150, 150);
     // Ensure the absolute value is at least 75
-  if (fabs(normalizedPWMVal) < 200) {
+  if (fabs(normalizedPWMVal) < 135) {
     if (normalizedPWMVal < 0) {
-      normalizedPWMVal = -175;
+      normalizedPWMVal = -135;
     } else {
-      normalizedPWMVal = 175;
+      normalizedPWMVal = 135;
     }
   }
   return normalizedPWMVal;

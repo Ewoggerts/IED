@@ -62,7 +62,7 @@ volatile long encoderLCount = 0;
 volatile long encoderRCount = 0;
 
 // Other variables
-const int SafeDistance = 25;  // Safe distance from obstacles
+const int SafeDistance = 45;  // Safe distance from obstacles
 bool isStopped = false;
 int wheelDiameter = 5; //cm
 int ticksPerRev = 20;
@@ -173,10 +173,10 @@ void setup() {
   delay(2000);
 
   // Initialize PID to start moving the car forward
-  SetpointL = distanceToWheelRev(300, wheelDiameter, ticksPerRev);  // Initialize Desired distance to reach
+  SetpointL = distanceToWheelRev(15, wheelDiameter, ticksPerRev);  // Initialize Desired distance to reach
   myPIDLeft.SetMode(AUTOMATIC);
   myPIDLeft.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); // Set output speed limits (in ticks per second)
-  SetpointR = distanceToWheelRev(300, wheelDiameter, ticksPerRev);  // Initialize Desired distance to reach
+  SetpointR = distanceToWheelRev(15, wheelDiameter, ticksPerRev);  // Initialize Desired distance to reach
   myPIDRight.SetMode(AUTOMATIC);
   myPIDRight.SetOutputLimits(-maxTicksPerSec, maxTicksPerSec); // Set output speed limits (in ticks per second)
 
@@ -195,7 +195,7 @@ void loop() {
   if (SetpointL == 0 && SetpointR == 0 && stoppedL && stoppedR){
     delay(500);
     changeDirection(false);
-    drive(100);
+    drive(15);
     stoppedL = 0;
     stoppedR = 0;
   }
