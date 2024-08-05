@@ -1,5 +1,3 @@
-
-
 void obstacleAvoidance(long* distances) {
   // Returns a boolean that determines if safeDistance has been breached 
   if (checkDist(distances, SafeDistance)) {
