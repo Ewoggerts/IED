@@ -234,7 +234,7 @@ void loop() {
     setMotorSpeedR(rightPWM);
   }
   /* PID ------------------------------------------------------------------ */
-
+  /*
   // Debugging info for PID
   Serial.print("ReverseLFlag: ");
   Serial.print(reverseL);
@@ -253,14 +253,14 @@ void loop() {
   Serial.print(SetpointL);
   Serial.print(" SetpointR: ");
   Serial.println(SetpointR);
-
+  */
   stopPoint(OutputL, OutputR); //Logic used to stop once pid has reach desired state
-
+  /*
   // Debugging info for stopping PID
   Serial.print("StopLFlag: ");
   Serial.print(stoppedL);
   Serial.print(" StopRFlag: ");
   Serial.println(stoppedR);
   Serial.println();
-  
+  */
 }

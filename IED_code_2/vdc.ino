@@ -3,11 +3,14 @@
 void obstacleAvoidance(long* distances) {
   // Returns a boolean that determines if safeDistance has been breached 
   if (checkDist(distances, SafeDistance)) {
+    /*
     Serial.println();
     Serial.println("SAFE DIST BREACH ---------------------------------------------------------");
+    */
     changeDirection(false); // Random direction change without a drop
-    delay(1000);
-    Serial.println("SAFE DIST RESET ----------------------------------------------------------");
+    
+    //Serial.println("SAFE DIST RESET ----------------------------------------------------------");
+    
   }
 }
 
@@ -31,20 +34,21 @@ void forceWait(int margin) {
     InputR = encoderRCount;
 
     if (!stoppedL){
-      Serial.println("PID-LEFT");
+      //Serial.println("PID-LEFT");
       myPIDLeft.Compute();
       leftPWM = normalizeToPWM(maxTicksPerSec, OutputL);  // Fixed to use OutputL
       setMotorSpeedL(leftPWM);
     }
     if (!stoppedR){
-      Serial.println("PID-RIGHT");
+      //Serial.println("PID-RIGHT");
       myPIDRight.Compute();
       rightPWM = normalizeToPWM(maxTicksPerSec, OutputR); // Fixed to use OutputR
       setMotorSpeedR(rightPWM);
     }
     /* PID ------------------------------------------------------------------ */
 
-      // Debugging info  
+      // Debugging info 
+    /* 
     Serial.print("ReverseLFlag: ");
     Serial.print(reverseL);
     Serial.print(" ReverseRFlag: ");
@@ -62,24 +66,29 @@ void forceWait(int margin) {
     Serial.print(SetpointL);
     Serial.print(" SetpointR: ");
     Serial.println(SetpointR);
-    
+    */
+
     stopPoint(OutputL, OutputR);
     
+    /*
     Serial.print("StopLFlag: ");
     Serial.print(stoppedL);
     Serial.print(" StopRFlag: ");
     Serial.println(stoppedR);
     Serial.println();
+    */
   }
 
   // Debugging info
-  Serial.println("FORCE-WAIT COMPLETED-------------------------------------------------------------");
+  //Serial.println("FORCE-WAIT COMPLETED-------------------------------------------------------------");
 }
 
 void drive(int desiredDist) {
+  /*
   Serial.print("Driving forwards or backwards by ");
   Serial.print(desiredDist);
   Serial.println(" cm.");
+  */
   stoppedL = 0;
   stoppedR = 0;
   // Set encoders back to 0 for PID
@@ -93,14 +102,16 @@ void drive(int desiredDist) {
   SetpointR = driveDist;
   
   // Debugging info
+  /*
   Serial.print("Drive SetpointL: ");
   Serial.print(SetpointL);
   Serial.print(" SetpointR: ");
   Serial.println(SetpointR);
+  */
 }
 
 void changeDirection(bool forced) {
-  Serial.println("Change Direction Loop Activated");
+  //Serial.println("Change Direction Loop Activated");
 
   // Forced 180 direction change (in cases where there is a drop)
   int deg = 180;
@@ -113,9 +124,10 @@ void changeDirection(bool forced) {
   }
 
   // Debugging info
+  /*
   Serial.print("Turning angle degrees: ");
   Serial.println(deg);
-
+  */
   // Make alert sound
   tone(SpeakerPin, 1000);
 
@@ -136,6 +148,7 @@ void changeDirection(bool forced) {
   encoderRCount = 0;
 
   // Debugging info
+  /*
   Serial.print("Change Direction SetpointL: ");
   Serial.print(SetpointL);
   Serial.print(" SetpointR: ");
@@ -146,19 +159,21 @@ void changeDirection(bool forced) {
   Serial.print(" StopRFlag: ");
   Serial.println(stoppedR);
   Serial.println();
-
+  */
   forceWait(5);
 
   // End alert sound after direction change finished
   noTone(SpeakerPin);
   // Debugging info
-  Serial.println("Direction change completed.");
+  //Serial.println("Direction change completed.");
 }
 
 void setMotorSpeedL(int motorLSpeed) {
   // Debugging info
+  /*
   Serial.print("Setting motor speeds - Left: ");
   Serial.println(motorLSpeed);
+  */
 
   if (motorLSpeed > 0) {
     digitalWrite(MotorLPin1, HIGH);
@@ -181,8 +196,10 @@ void setMotorSpeedL(int motorLSpeed) {
 
 void setMotorSpeedR(int motorRSpeed) {
   // Debugging info
+  /*
   Serial.print("Setting motor speeds - Right: ");
   Serial.println(motorRSpeed);
+  */
   
   if (motorRSpeed > 0) {
     digitalWrite(MotorRPin1, HIGH);
@@ -204,10 +221,12 @@ void setMotorSpeedR(int motorRSpeed) {
 
 void stopPoint(float setpL, float setpR) {
   // Debugging info
+  /*
   Serial.print("Output - Left: ");
   Serial.print(setpL);
   Serial.print(", Right: ");
   Serial.println(setpR);
+  */
 
   if (abs(setpL) < stopMargin) {
     Serial.println("STOP-LEFT");
