@@ -1,5 +1,3 @@
-
-
 const float pi = 3.1415926535;
 
 // Converts input turn angle to the required number of wheel rotations to achieve that angle
