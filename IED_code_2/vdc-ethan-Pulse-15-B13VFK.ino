@@ -1,67 +1,54 @@
+#include "functions.ino"
+#include "IED_code_2.ino"
+
 void obstacleAvoidance(long* distances) {
   // Returns a boolean that determines if safeDistance has been breached 
-  int temp = checkDist(distances, SafeDistance);
-  if (temp) {
-    drive(temp);
-    forceWait(5);
-    
-    //Serial.println();
+  if (checkDist(distances, SafeDistance)) {
+    Serial.println();
     Serial.println("SAFE DIST BREACH ---------------------------------------------------------");
-    
     changeDirection(false); // Random direction change without a drop
-    //delay(500);
-    
-    //Serial.println("SAFE DIST RESET ----------------------------------------------------------");
-    
+    //drive(200);
+    Serial.println("SAFE DIST RESET ----------------------------------------------------------");
   }
 }
 
 void dropAvoidance() {
-  if (digitalRead(IrSensorLPin) == HIGH || digitalRead(IrSensorRPin) == HIGH ) {
-    dropFlagRising = 1;
-  } else if (digitalRead(IrSensorLPin) == LOW && digitalRead(IrSensorRPin) == LOW)  {
-    dropFlagFalling = 1;
-  }
+  Serial.println("Drop detected by IR sensors.");
+  drive(-25); // 10 cm reverse
+  Serial.println("EMERGENCY REVERSING");
+  forceWait(stopMargin);
+  Serial.println("EMERGENCY FINISHED");
+  // Uncomment if 180 direction change is needed
+  changeDirection(true); // 180 direction change if there is a drop
 }
 
 void forceWait(int margin) {
   // Debugging info
-  /*
-  Serial.println();
-  Serial.println("FORCE-WAIT -------------------------------------------------------------");
-  */
+  Serial.println("FORCE-WAIT activated.");
 
   // Force wait till adjustment outputs are really small
   while (!stoppedL || !stoppedR) {
-    //Serial.println("FORCE WAIT LOOP ... ... ... ... ...");
     /* PID ------------------------------------------------------------------ */
-    //long* data = readAllDistances();
-    //obstacleAvoidance(data); // Constantly checks for the need for direction change
-
+    
+    Serial.println("forced wait loop ... ...");
     InputL = encoderLCount;
     InputR = encoderRCount;
 
     if (!stoppedL){
-      //Serial.println("PID-LEFT");
+      Serial.println("PID-LEFT");
       myPIDLeft.Compute();
       leftPWM = normalizeToPWM(maxTicksPerSec, OutputL);  // Fixed to use OutputL
       setMotorSpeedL(leftPWM);
     }
     if (!stoppedR){
-      //Serial.println("PID-RIGHT");
+      Serial.println("PID-RIGHT");
       myPIDRight.Compute();
       rightPWM = normalizeToPWM(maxTicksPerSec, OutputR); // Fixed to use OutputR
       setMotorSpeedR(rightPWM);
     }
     /* PID ------------------------------------------------------------------ */
 
-      // Debugging info 
-    /* 
-    Serial.print("ReverseLFlag: ");
-    Serial.print(reverseL);
-    Serial.print(" ReverseRFlag: ");
-    Serial.println(reverseR);
-    
+      // Debugging info  
     Serial.print("Loop - InputL: ");
     Serial.print(InputL);
     Serial.print(" InputR: ");
@@ -74,29 +61,27 @@ void forceWait(int margin) {
     Serial.print(SetpointL);
     Serial.print(" SetpointR: ");
     Serial.println(SetpointR);
-    */
-
+    
+    
     stopPoint(OutputL, OutputR);
     
-    /*
     Serial.print("StopLFlag: ");
     Serial.print(stoppedL);
     Serial.print(" StopRFlag: ");
     Serial.println(stoppedR);
     Serial.println();
-    */
+    
+
   }
 
   // Debugging info
-  //Serial.println("FORCE-WAIT COMPLETED-------------------------------------------------------------");
+  Serial.println("FORCE-WAIT completed.");
 }
 
 void drive(int desiredDist) {
-  
-  Serial.print("DRIVING: ");
+  Serial.print("Driving forwards or backwards by ");
   Serial.print(desiredDist);
   Serial.println(" cm.");
-  
   stoppedL = 0;
   stoppedR = 0;
   // Set encoders back to 0 for PID
@@ -106,22 +91,27 @@ void drive(int desiredDist) {
   // Forward set distance
   int driveDist = distanceToWheelRev(desiredDist, wheelDiameter, ticksPerRev);
 
-  SetpointL = driveDist;
-  SetpointR = driveDist;
-  
+  // Set for driving forward
+  if (desiredDist > 0) {
+    SetpointL = driveDist;
+    SetpointR = driveDist;
+  }
+  else { // Set for driving reverse
+    SetpointL = -driveDist;
+    SetpointR = -driveDist;
+  }
+
   // Debugging info
-  /*
   Serial.print("Drive SetpointL: ");
   Serial.print(SetpointL);
   Serial.print(" SetpointR: ");
   Serial.println(SetpointR);
-  */
 }
 
 void changeDirection(bool forced) {
-  Serial.println("CHANGING DIRECTIONS");
+  Serial.println("Change Direction Loop Activated");
 
-  // Forced 180 direction change (in cases where there is a drop)7
+  // Forced 180 direction change (in cases where there is a drop)
   int deg = 180;
   int ticks = turnAngleToWheelRev(deg, driveBase, wheelDiameter, ticksPerRev);
 
@@ -132,10 +122,9 @@ void changeDirection(bool forced) {
   }
 
   // Debugging info
-  /*
   Serial.print("Turning angle degrees: ");
   Serial.println(deg);
-  */
+
   // Make alert sound
   tone(SpeakerPin, 1000);
 
@@ -156,7 +145,6 @@ void changeDirection(bool forced) {
   encoderRCount = 0;
 
   // Debugging info
-  /*
   Serial.print("Change Direction SetpointL: ");
   Serial.print(SetpointL);
   Serial.print(" SetpointR: ");
@@ -167,21 +155,19 @@ void changeDirection(bool forced) {
   Serial.print(" StopRFlag: ");
   Serial.println(stoppedR);
   Serial.println();
-  */
+
   forceWait(5);
 
   // End alert sound after direction change finished
   noTone(SpeakerPin);
   // Debugging info
-  //Serial.println("Direction change completed.");
+  Serial.println("Direction change completed.");
 }
 
 void setMotorSpeedL(int motorLSpeed) {
   // Debugging info
-  /*
   Serial.print("Setting motor speeds - Left: ");
   Serial.println(motorLSpeed);
-  */
 
   if (motorLSpeed > 0) {
     digitalWrite(MotorLPin1, HIGH);
@@ -195,7 +181,7 @@ void setMotorSpeedL(int motorLSpeed) {
     digitalWrite(MotorLPin1_dup, LOW);
     digitalWrite(MotorLPin2_dup, HIGH);
     motorLSpeed = -motorLSpeed;
-    reverseL = 1;
+    reverseR = 1;
   }
   analogWrite(MotorLSpeedPin, motorLSpeed);
   analogWrite(MotorLSpeedPin_dup, motorLSpeed);
@@ -204,10 +190,8 @@ void setMotorSpeedL(int motorLSpeed) {
 
 void setMotorSpeedR(int motorRSpeed) {
   // Debugging info
-  /*
   Serial.print("Setting motor speeds - Right: ");
   Serial.println(motorRSpeed);
-  */
   
   if (motorRSpeed > 0) {
     digitalWrite(MotorRPin1, HIGH);
@@ -229,15 +213,13 @@ void setMotorSpeedR(int motorRSpeed) {
 
 void stopPoint(float setpL, float setpR) {
   // Debugging info
-  /*
   Serial.print("Output - Left: ");
   Serial.print(setpL);
   Serial.print(", Right: ");
   Serial.println(setpR);
-  */
 
   if (abs(setpL) < stopMargin) {
-    //Serial.println("STOP-LEFT");
+    Serial.println("STOP-LEFT");
     analogWrite(MotorLSpeedPin, 0);
     analogWrite(MotorLSpeedPin_dup, 0);
     encoderLCount = 0;
@@ -246,7 +228,7 @@ void stopPoint(float setpL, float setpR) {
   }
 
   if (abs(setpR) < stopMargin) {
-    //Serial.println("STOP-RIGHT");
+    Serial.println("STOP-RIGHT");
     analogWrite(MotorRSpeedPin, 0);
     analogWrite(MotorRSpeedPin_dup, 0);
     encoderRCount = 0;
@@ -268,13 +250,12 @@ long* readAllDistances() {
   distances[2] = getDistance(UltraSonicTrigRight, UltraSonicEchoRight);
 
   // Print distances
-  
   Serial.print("Left: ");
   Serial.print(distances[0]);
   Serial.print(" cm, Mid: ");
   Serial.print(distances[1]);
   Serial.print(" cm, Right: ");
   Serial.println(distances[2]);
-  
+
   return distances;
 }

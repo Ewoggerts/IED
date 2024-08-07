@@ -1,3 +1,6 @@
+#include "IED_code_2.ino"
+#include "vdc.ino"
+
 const float pi = 3.1415926535;
 
 // Converts input turn angle to the required number of wheel rotations to achieve that angle
@@ -7,7 +10,7 @@ float turnAngleToWheelRev(float turnAngle, float driveBase, float wheelDiameter,
   float wheelRevPerFullRotation = turnCircumference / distPerWheelRev;
   float degreeChangePerWheelRev = wheelRevPerFullRotation / 360;
   float outputTicks = turnAngle * degreeChangePerWheelRev * ticksPerRev;
-  return outputTicks;
+  return outputTicks*2;
 }
 
 // Converts input travel distance to the required number of wheel rotations to achieve that distance
@@ -19,15 +22,7 @@ float distanceToWheelRev(float travelDistance, float wheelDiameter, int ticksPer
 
 // Normalizes an input(Ticks per Second) to PWM output using maximum tested encoder ticks per second
 float normalizeToPWM(float maxTicksPerSec, float inputTicksPerSec) {
-  float normalizedPWMVal = map(inputTicksPerSec, -maxTicksPerSec, maxTicksPerSec, -200, 200);
-    // Ensure the absolute value is at least 75
-  if (fabs(normalizedPWMVal) < 150) {
-    if (normalizedPWMVal < 0) {
-      normalizedPWMVal = -150;
-    } else {
-      normalizedPWMVal = 150;
-    }
-  }
+  float normalizedPWMVal = map(inputTicksPerSec, -maxTicksPerSec, maxTicksPerSec, -255, 255);
   return normalizedPWMVal;
 }
 
@@ -37,32 +32,21 @@ int generateRandomValue() {
 
   if (isNegative) {
     // Return a random value between -60 to -180
-    return random(-180, -75);
+    return random(-180, -59);
   } else {
     // Return a random value between 60 to 180
-    return random(75, 181);
+    return random(60, 181);
   }
 }
 
-//check if direction change is required
-int checkDist(long* distances, int SafeDistance){
-  int greatest_diff = 0;
+boolean checkDist(long* distances, int SafeDistance){
+  //check if direction change is required
   for(unsigned int i = 0; i < 3; i++){
-    if (distances[i] < SafeDistance && (distances[i] - SafeDistance) < greatest_diff){
-      greatest_diff = distances[i] - SafeDistance;
+    if (distances[i] < SafeDistance){
+      return true;
     }
   }
-  return greatest_diff*1.5;
-}
-
-int checkDist_drive(long* distances, int SafeDistance){
-  int least_diff = distances[0] - SafeDistance;
-  for(unsigned int i = 1; i < 3; i++){
-    if ((distances[i] - SafeDistance) < least_diff){
-      least_diff = distances[i] - SafeDistance;
-    }
-  }
-  return least_diff;
+  return false;
 }
 
 long getDistance(int trigPin, int echoPin) {
