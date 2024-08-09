@@ -19,8 +19,10 @@ void obstacleAvoidance(long* distances) {
 void dropAvoidance() {
   if (digitalRead(IrSensorLPin) == HIGH || digitalRead(IrSensorRPin) == HIGH ) {
     dropFlagRising = 1;
+    dropFlagFalling = 0;
   } else if (digitalRead(IrSensorLPin) == LOW && digitalRead(IrSensorRPin) == LOW)  {
-    dropFlagFalling = 1;
+    dropFlagRising = 0;
+    dropFlagFalling = 0;
   }
 }
 
